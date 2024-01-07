@@ -52,7 +52,7 @@ fn add_corpus_tests(tests: &mut Vec<TestDescAndFn>, path: impl AsRef<Path>) {
 fn test_roundtrip(path: impl AsRef<Path>) {
     let data = fs::read(path).unwrap();
 
-    let compressed = lzo1x::compress(&data);
+    let compressed = lzo1x::compress_1(&data);
 
     let mut decompressed = vec![0; data.len()];
     lzo1x::decompress(&compressed, &mut decompressed).unwrap();
