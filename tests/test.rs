@@ -54,8 +54,8 @@ fn test_roundtrip(path: impl AsRef<Path>) {
 
     let compressed = lzo1x::compress(&data);
 
-    let mut decompressed_buf = vec![0; data.len()];
-    let decompressed = lzo::lzo1x::decompress_safe(&compressed, &mut decompressed_buf).unwrap();
+    let mut decompressed = vec![0; data.len()];
+    lzo1x::decompress(&compressed, &mut decompressed).unwrap();
 
     assert!(decompressed == data);
 }
