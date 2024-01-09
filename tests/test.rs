@@ -23,33 +23,43 @@ fn add_corpus_tests(tests: &mut Vec<TestDescAndFn>, path: impl AsRef<Path>) {
 
         let file_name = entry.file_name().to_str().unwrap().to_owned();
 
-        let test = TestDescAndFn {
-            desc: TestDesc {
-                name: TestName::DynTestName(file_name),
-                ignore: false,
-                ignore_message: None,
-                source_file: "",
-                start_line: 0,
-                start_col: 0,
-                end_line: 0,
-                end_col: 0,
-                should_panic: ShouldPanic::No,
-                compile_fail: false,
-                no_run: false,
-                test_type: TestType::IntegrationTest,
-            },
-            testfn: TestFn::DynTestFn(Box::new(move || {
-                test_roundtrip(entry.path());
+        let test_1 = create_test(
+            format!("lzo1x-1 {file_name}"),
+            Box::new(move || {
+                test_roundtrip_1(entry.path());
 
                 Ok(())
-            })),
-        };
+            }),
+        );
 
-        tests.push(test);
+        tests.push(test_1);
     }
 }
 
-fn test_roundtrip(path: impl AsRef<Path>) {
+fn create_test(
+    name: String,
+    test_fn: Box<dyn FnOnce() -> Result<(), String> + Send>,
+) -> TestDescAndFn {
+    TestDescAndFn {
+        desc: TestDesc {
+            name: TestName::DynTestName(name),
+            ignore: false,
+            ignore_message: None,
+            source_file: "",
+            start_line: 0,
+            start_col: 0,
+            end_line: 0,
+            end_col: 0,
+            should_panic: ShouldPanic::No,
+            compile_fail: false,
+            no_run: false,
+            test_type: TestType::IntegrationTest,
+        },
+        testfn: TestFn::DynTestFn(test_fn),
+    }
+}
+
+fn test_roundtrip_1(path: impl AsRef<Path>) {
     let data = fs::read(path).unwrap();
 
     let compressed = lzo1x::compress_1(&data);

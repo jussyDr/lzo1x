@@ -2,18 +2,6 @@ pub fn compress_1(src: &[u8]) -> Vec<u8> {
     compress(src, 16384, 14)
 }
 
-pub fn compress_1_11(src: &[u8]) -> Vec<u8> {
-    compress(src, 2048, 11)
-}
-
-pub fn compress_1_12(src: &[u8]) -> Vec<u8> {
-    compress(src, 4096, 12)
-}
-
-pub fn compress_1_15(src: &[u8]) -> Vec<u8> {
-    compress(src, 32768, 15)
-}
-
 fn compress(src: &[u8], mem_len: usize, d_bits: u32) -> Vec<u8> {
     let src_len = src.len();
 
