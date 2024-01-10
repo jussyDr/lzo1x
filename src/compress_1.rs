@@ -1,3 +1,7 @@
+use crate::config::{
+    M2_MAX_LEN, M2_MAX_OFFSET, M3_MARKER, M3_MAX_LEN, M3_MAX_OFFSET, M4_MARKER, M4_MAX_LEN,
+};
+
 pub fn compress_1(src: &[u8]) -> Vec<u8> {
     compress(src, 16384, 14)
 }
@@ -147,21 +151,21 @@ fn compress(src: &[u8], mem_len: usize, d_bits: u32) -> Vec<u8> {
                 src_idx += m_len;
                 ii = src_idx;
 
-                if m_len <= 8 && m_off <= 0x0800 {
+                if m_len <= M2_MAX_LEN && m_off <= M2_MAX_OFFSET {
                     m_off -= 1;
                     dst[dst_idx] = (((m_len - 1) << 5) | ((m_off & 7) << 2)) as u8;
                     dst_idx += 1;
                     dst[dst_idx] = (m_off >> 3) as u8;
                     dst_idx += 1;
-                } else if m_off <= 0x4000 {
+                } else if m_off <= M3_MAX_OFFSET {
                     m_off -= 1;
 
-                    if m_len <= 33 {
-                        dst[dst_idx] = (32 | (m_len - 2)) as u8;
+                    if m_len <= M3_MAX_LEN {
+                        dst[dst_idx] = (M3_MARKER | (m_len - 2)) as u8;
                         dst_idx += 1;
                     } else {
-                        m_len -= 33;
-                        dst[dst_idx] = 32;
+                        m_len -= M3_MAX_LEN;
+                        dst[dst_idx] = M3_MARKER as u8;
                         dst_idx += 1;
 
                         while m_len > 255 {
@@ -181,12 +185,12 @@ fn compress(src: &[u8], mem_len: usize, d_bits: u32) -> Vec<u8> {
                 } else {
                     m_off -= 0x4000;
 
-                    if m_len <= 9 {
-                        dst[dst_idx] = (16 | ((m_off >> 11) & 8) | (m_len - 2)) as u8;
+                    if m_len <= M4_MAX_LEN {
+                        dst[dst_idx] = (M4_MARKER | ((m_off >> 11) & 8) | (m_len - 2)) as u8;
                         dst_idx += 1;
                     } else {
-                        m_len -= 9;
-                        dst[dst_idx] = (16 | ((m_off >> 11) & 8)) as u8;
+                        m_len -= M4_MAX_LEN;
+                        dst[dst_idx] = (M4_MARKER | ((m_off >> 11) & 8)) as u8;
                         dst_idx += 1;
 
                         while m_len > 255 {
@@ -249,7 +253,7 @@ fn compress(src: &[u8], mem_len: usize, d_bits: u32) -> Vec<u8> {
         dst_idx += t;
     }
 
-    dst[dst_idx] = 17;
+    dst[dst_idx] = (M4_MARKER | 1) as u8;
     dst_idx += 1;
     dst[dst_idx] = 0;
     dst_idx += 1;
