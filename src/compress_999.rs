@@ -1,17 +1,21 @@
-use std::ffi::c_void;
-
 use crate::{
     config::{
         M1_MARKER, M1_MAX_OFFSET, M2_MAX_LEN, M2_MAX_OFFSET, M2_MIN_LEN, M3_MARKER, M3_MAX_LEN,
         M3_MAX_OFFSET, M4_MARKER, M4_MAX_LEN, M4_MAX_OFFSET, MX_MAX_OFFSET,
     },
-    swd::{Swd, SWD_MAX_CHAIN, SWD_THRESHOLD},
+    swd::{Swd, SWD_F, SWD_MAX_CHAIN, SWD_THRESHOLD},
 };
 
-struct lzo_callback_p;
+pub fn compress_999(src: &[u8]) -> Vec<u8> {
+    let mut dst = vec![0; src.len() + (src.len() / 16) + 64 + 3];
+
+    let dst_len = unsafe { compress_internal(src, &mut dst, 2, 32, 128, SWD_F, 2048, 1) };
+
+    dst.resize(dst_len, 0);
+    dst
+}
 
 pub struct Compress<'a> {
-    init: u32,
     look: usize,
     m_len: usize,
     m_off: usize,
@@ -20,14 +24,10 @@ pub struct Compress<'a> {
     bp: usize,
     pub src_idx: usize,
     pub src: &'a [u8],
-    dst: &'a mut [u8],
-    cb: lzo_callback_p,
     textsize: usize,
     codesize: usize,
-    printcount: usize,
     lit_bytes: usize,
     match_bytes: usize,
-    rep_bytes: usize,
     lazy: usize,
     r1_lit: usize,
     r1_m_len: usize,
@@ -44,17 +44,13 @@ pub struct Compress<'a> {
 unsafe fn compress_internal(
     src: &[u8],
     dst: &mut [u8],
-    wrkmem: *mut c_void,
-    dict: *const u8,
-    dict_len: usize,
-    cb: lzo_callback_p,
     try_lazy_parm: i32,
     mut good_length: usize,
     mut max_lazy: usize,
     mut nice_length: usize,
     mut max_chain: usize,
     flags: u32,
-) {
+) -> usize {
     let mut try_lazy: usize = try_lazy_parm as usize;
 
     if try_lazy_parm < 0 {
@@ -78,7 +74,6 @@ unsafe fn compress_internal(
     }
 
     let c = &mut Compress {
-        init: 1,
         look: 0,
         m_len: 0,
         m_off: 0,
@@ -87,14 +82,10 @@ unsafe fn compress_internal(
         bp: 0,
         src_idx: 0,
         src,
-        dst: &mut *(dst as *mut [u8]),
-        cb: lzo_callback_p,
         textsize: 0,
         codesize: 0,
-        printcount: 0,
         lit_bytes: 0,
         match_bytes: 0,
-        rep_bytes: 0,
         lazy: 0,
         r1_lit: 0,
         r1_m_len: 0,
@@ -235,7 +226,7 @@ unsafe fn compress_internal(
 
     /* store final run */
     if lit > 0 {
-        dst_idx = STORE_RUN(c, dst, dst_idx, src, ii, lit);
+        dst_idx = store_run(c, dst, dst_idx, src, ii, lit);
     }
 
     dst[dst_idx] = M4_MARKER as u8 | 1;
@@ -247,10 +238,10 @@ unsafe fn compress_internal(
 
     c.codesize = dst_idx;
 
-    let out_len = dst_idx;
+    dst_idx
 }
 
-fn STORE_RUN(
+fn store_run(
     c: &mut Compress,
     dst: &mut [u8],
     mut dst_idx: usize,
@@ -294,7 +285,7 @@ fn STORE_RUN(
         t -= 1;
     }
 
-    return dst_idx;
+    dst_idx
 }
 
 fn code_match(
@@ -341,7 +332,7 @@ fn code_match(
             dst_idx += 1;
         } else {
             m_len -= M3_MAX_LEN;
-            dst[dst_idx] = M3_MARKER as u8 | 0;
+            dst[dst_idx] = M3_MARKER as u8;
             dst_idx += 1;
 
             while m_len > 255 {
@@ -367,7 +358,7 @@ fn code_match(
             dst_idx += 1;
         } else {
             m_len -= M4_MAX_LEN;
-            dst[dst_idx] = (M4_MARKER | k | 0) as u8;
+            dst[dst_idx] = (M4_MARKER | k) as u8;
             dst_idx += 1;
 
             while m_len > 255 {
@@ -390,7 +381,7 @@ fn code_match(
     c.last_m_len = x_len;
     c.last_m_off = x_off;
 
-    return dst_idx;
+    dst_idx
 }
 
 fn code_run(
@@ -403,7 +394,7 @@ fn code_run(
     m_len: usize,
 ) -> usize {
     if lit > 0 {
-        dst_idx = STORE_RUN(c, dst, dst_idx, src, ii, lit);
+        dst_idx = store_run(c, dst, dst_idx, src, ii, lit);
         c.r1_m_len = m_len;
         c.r1_lit = lit;
     } else {
@@ -508,7 +499,7 @@ fn len_of_coded_match(mut m_len: usize, m_off: usize, lit: usize) -> usize {
         return n;
     }
 
-    return 0;
+    0
 }
 
 fn min_gain(ahead: usize, lit1: usize, lit2: usize, l1: usize, l2: usize, l3: usize) -> usize {
@@ -532,7 +523,7 @@ fn min_gain(ahead: usize, lit1: usize, lit2: usize, l1: usize, l2: usize, l3: us
         lazy_match_min_gain = 0;
     }
 
-    return lazy_match_min_gain;
+    lazy_match_min_gain
 }
 
 fn find_match(c: &mut Compress, s: &mut Swd, this_len: usize, skip: usize) {

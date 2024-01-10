@@ -5,7 +5,7 @@ use crate::{
 
 const SWD_N: usize = M4_MAX_OFFSET;
 pub const SWD_THRESHOLD: usize = 1;
-const SWD_F: usize = 2048;
+pub const SWD_F: usize = 2048;
 const SWD_BEST_OFF: usize = M3_MAX_LEN + 1;
 
 const SWD_HSIZE: usize = 16384;
@@ -14,13 +14,10 @@ pub const SWD_MAX_CHAIN: usize = 2048;
 const NIL2: u16 = u16::MAX;
 
 pub struct Swd<'a> {
-    swd_n: usize,
     swd_f: usize,
-    swd_threshold: usize,
     pub max_chain: usize,
     pub nice_length: usize,
     pub use_best_off: bool,
-    lazy_insert: usize,
     pub m_len: usize,
     pub m_off: usize,
     look: usize,
@@ -29,15 +26,12 @@ pub struct Swd<'a> {
     c: &'a mut Compress<'a>,
     m_pos: usize,
     pub best_pos: [usize; SWD_BEST_OFF],
-    dict: &'a [u8],
-    dict_len: usize,
     ip: usize,
     bp: usize,
     rp: usize,
     b_size: usize,
     b_wrap: usize,
     node_count: usize,
-    first_rp: usize,
     b: [u8; SWD_N + SWD_F + SWD_F],
     head3: [u16; SWD_HSIZE],
     succ3: [u16; SWD_N + SWD_F],
@@ -83,13 +77,10 @@ impl<'a> Swd<'a> {
         }
 
         Self {
-            swd_n: SWD_N,
             swd_f: SWD_F,
-            swd_threshold: SWD_THRESHOLD,
             max_chain: SWD_MAX_CHAIN,
             nice_length: SWD_F,
             use_best_off: false,
-            lazy_insert: 0,
             m_len: 0,
             m_off: 0,
             look,
@@ -98,15 +89,12 @@ impl<'a> Swd<'a> {
             c,
             m_pos: 0,
             best_pos: [0; SWD_BEST_OFF],
-            dict: &[],
-            dict_len: 0,
             ip,
             bp: 0,
             rp,
             b_size: SWD_N + SWD_F,
             b_wrap: SWD_N + SWD_F,
             node_count: SWD_N,
-            first_rp: 0,
             b,
             head3: [0; SWD_HSIZE],
             succ3: [0; SWD_N + SWD_F],
@@ -118,11 +106,11 @@ impl<'a> Swd<'a> {
 
     fn remove_node(&mut self, node: usize) {
         if self.node_count == 0 {
-            let key = HEAD3(&self.b, node);
+            let key = head3(&self.b, node);
 
             self.llen3[key] -= 1;
 
-            let key = HEAD2(&self.b, node);
+            let key = head2(&self.b, node);
 
             if self.head2[key] as usize == node {
                 self.head2[key] = NIL2;
@@ -192,7 +180,7 @@ impl<'a> Swd<'a> {
     }
 
     fn search2(&mut self) -> bool {
-        let key = self.head2[HEAD2(&self.b, self.bp)];
+        let key = self.head2[head2(&self.b, self.bp)];
 
         if key == NIL2 {
             return false;
@@ -211,7 +199,7 @@ impl<'a> Swd<'a> {
     }
 
     pub fn find_best(&mut self) {
-        let key = HEAD3(&self.b, self.bp);
+        let key = head3(&self.b, self.bp);
 
         let node = s_get_head3(self, key);
         self.succ3[self.bp] = node;
@@ -226,6 +214,7 @@ impl<'a> Swd<'a> {
 
         self.b_char = self.b[self.bp] as i32;
         let len = self.m_len;
+
         if self.m_len >= self.look {
             if self.look == 0 {
                 self.b_char = -1;
@@ -257,7 +246,7 @@ impl<'a> Swd<'a> {
 
         self.remove_node(self.rp);
 
-        let key = HEAD2(&self.b, self.bp);
+        let key = head2(&self.b, self.bp);
         self.head2[key] = self.bp as u16;
     }
 
@@ -265,7 +254,7 @@ impl<'a> Swd<'a> {
         while n != 0 {
             self.remove_node(self.rp);
 
-            let key = HEAD3(&self.b, self.bp);
+            let key = head3(&self.b, self.bp);
             self.succ3[self.bp] = if self.llen3[key] == 0 {
                 u16::MAX
             } else {
@@ -275,7 +264,7 @@ impl<'a> Swd<'a> {
             self.best3[self.bp] = (self.swd_f + 1) as u16;
             self.llen3[key] += 1;
 
-            let key = HEAD2(&self.b, self.bp);
+            let key = head2(&self.b, self.bp);
             self.head2[key] = self.bp as u16;
 
             self.get_byte();
@@ -331,12 +320,12 @@ impl<'a> Swd<'a> {
     }
 }
 
-fn HEAD3(b: &[u8], p: usize) -> usize {
+fn head3(b: &[u8], p: usize) -> usize {
     ((0x9f5f * (((((b[p] as usize) << 5) ^ b[p + 1] as usize) << 5) ^ b[p + 2] as usize)) >> 5)
         & (SWD_HSIZE - 1)
 }
 
-fn HEAD2(b: &[u8], p: usize) -> usize {
+fn head2(b: &[u8], p: usize) -> usize {
     b[p] as usize ^ ((b[(p) + 1] as usize) << 8)
 }
 

@@ -3,14 +3,14 @@ use crate::config::{
 };
 
 pub fn compress_1(src: &[u8]) -> Vec<u8> {
-    compress(src, 16384, 14)
+    compress(src, 14)
 }
 
-fn compress(src: &[u8], mem_len: usize, d_bits: u32) -> Vec<u8> {
+fn compress(src: &[u8], d_bits: u32) -> Vec<u8> {
     let src_len = src.len();
 
     let mut dst = vec![0; src_len + (src_len / 16) + 64 + 3];
-    let mut work_mem = vec![0; mem_len];
+    let mut work_mem = vec![0; 1 << d_bits];
 
     let mut src_idx = 0;
     let mut dst_idx = 0;

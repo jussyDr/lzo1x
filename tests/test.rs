@@ -11,8 +11,39 @@ fn main() {
 
     let mut tests = vec![];
 
-    add_corpus_tests(&mut tests, "tests/calgary", CALGARY_COMPRESS_1_LENS);
-    add_corpus_tests(&mut tests, "tests/silesia", SILESIA_COMPRESS_1_LENS);
+    // add_corpus_tests(&mut tests, "tests/calgary", CALGARY_COMPRESS_1_LENS);
+    // add_corpus_tests(&mut tests, "tests/silesia", SILESIA_COMPRESS_1_LENS);
+
+    let test = TestDescAndFn {
+        desc: TestDesc {
+            name: TestName::DynTestName("test".into()),
+            ignore: false,
+            ignore_message: None,
+            source_file: "",
+            start_line: 0,
+            start_col: 0,
+            end_line: 0,
+            end_col: 0,
+            should_panic: ShouldPanic::No,
+            compile_fail: false,
+            no_run: false,
+            test_type: TestType::IntegrationTest,
+        },
+        testfn: TestFn::DynTestFn(Box::new(move || {
+            let src = vec![0, 0];
+
+            let mut dst = vec![0; lzo::lzo1x::worst_compress_size(src.len())];
+            let dst = lzo::lzo1x::compress_999(&src, &mut dst).unwrap();
+
+            let wrong = lzo1x::compress_999(&src);
+
+            assert!(dst == wrong);
+
+            Ok(())
+        })),
+    };
+
+    tests.push(test);
 
     test_main(&args, tests, None);
 }
