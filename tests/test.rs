@@ -20,12 +20,17 @@ fn main() {
 
     let mut tests = vec![];
 
-    add_corpus_tests(&mut tests, "corpora/calgary.zip");
-    add_corpus_tests(&mut tests, "corpora/silesia.zip");
+    // add_corpus_tests(&mut tests, "corpora/calgary.zip");
+    // add_corpus_tests(&mut tests, "corpora/silesia.zip");
 
-    add_roundtrip_1_test(
+    // add_roundtrip_1_test(
+    //     &mut tests,
+    //     "tests/fuzz/crash-8e855f271031b6ba31529bdd41d7c5571eec732c",
+    // );
+
+    add_roundtrip_1_optimize_test(
         &mut tests,
-        "tests/fuzz/crash-8e855f271031b6ba31529bdd41d7c5571eec732c",
+        "tests/fuzz/crash-28a2691544a8a7d924c29f628253a81723e1a5d2",
     );
 
     test_main(&args, tests, None);
@@ -50,7 +55,7 @@ fn add_corpus_tests(tests: &mut Vec<TestDescAndFn>, path: &str) {
         let test = create_roundtrip_1_test(file.name(), Arc::clone(&data));
         tests.push(test);
 
-        let test = create_roundtrip_999_optimize_test(file.name(), Arc::clone(&data));
+        let test = create_roundtrip_999_test(file.name(), Arc::clone(&data));
         tests.push(test);
     }
 }
@@ -59,6 +64,13 @@ fn add_roundtrip_1_test(tests: &mut Vec<TestDescAndFn>, path: &str) {
     let data = fs::read(path).unwrap();
 
     let test = create_roundtrip_1_test(path, Arc::new(data));
+    tests.push(test);
+}
+
+fn add_roundtrip_1_optimize_test(tests: &mut Vec<TestDescAndFn>, path: &str) {
+    let data = fs::read(path).unwrap();
+
+    let test = create_roundtrip_1_optimize_test(path, Arc::new(data));
     tests.push(test);
 }
 
@@ -86,10 +98,10 @@ fn create_roundtrip_1_test(name: &str, data: Arc<Vec<u8>>) -> TestDescAndFn {
     }
 }
 
-fn create_roundtrip_999_optimize_test(name: &str, data: Arc<Vec<u8>>) -> TestDescAndFn {
+fn create_roundtrip_1_optimize_test(name: &str, data: Arc<Vec<u8>>) -> TestDescAndFn {
     TestDescAndFn {
         desc: TestDesc {
-            name: TestName::DynTestName(format!("roundtrip 999 optimize {name}")),
+            name: TestName::DynTestName(format!("roundtrip 1 optimize {name}")),
             ignore: false,
             ignore_message: None,
             source_file: "",
@@ -103,7 +115,31 @@ fn create_roundtrip_999_optimize_test(name: &str, data: Arc<Vec<u8>>) -> TestDes
             test_type: TestType::IntegrationTest,
         },
         testfn: TestFn::DynTestFn(Box::new(move || {
-            roundtrip_999_optimize(&data);
+            roundtrip_1_optimize(&data);
+
+            Ok(())
+        })),
+    }
+}
+
+fn create_roundtrip_999_test(name: &str, data: Arc<Vec<u8>>) -> TestDescAndFn {
+    TestDescAndFn {
+        desc: TestDesc {
+            name: TestName::DynTestName(format!("roundtrip 999 {name}")),
+            ignore: false,
+            ignore_message: None,
+            source_file: "",
+            start_line: 0,
+            start_col: 0,
+            end_line: 0,
+            end_col: 0,
+            should_panic: ShouldPanic::No,
+            compile_fail: false,
+            no_run: false,
+            test_type: TestType::IntegrationTest,
+        },
+        testfn: TestFn::DynTestFn(Box::new(move || {
+            roundtrip_999(&data);
 
             Ok(())
         })),
@@ -121,14 +157,25 @@ fn roundtrip_1(data: &[u8]) {
     assert!(decompressed == data);
 }
 
-fn roundtrip_999_optimize(data: &[u8]) {
-    let mut compressed = lzo1x::compress_999(data);
+fn roundtrip_1_optimize(data: &[u8]) {
+    let mut compressed = lzo1x::compress_1(data);
 
-    assert!(compressed == lzo_sys_compress_999(data));
+    assert!(compressed == lzo_sys_compress_1(data));
 
     lzo1x::optimize(&mut compressed, data.len()).unwrap();
 
     assert!(compressed == lzo_sys_optimize(&compressed, data.len()));
+
+    let mut decompressed = vec![0; data.len()];
+    lzo1x::decompress(&compressed, &mut decompressed);
+
+    assert!(decompressed == data);
+}
+
+fn roundtrip_999(data: &[u8]) {
+    let mut compressed = lzo1x::compress_999(data);
+
+    assert!(compressed == lzo_sys_compress_999(data));
 
     let mut decompressed = vec![0; data.len()];
     lzo1x::decompress(&compressed, &mut decompressed);

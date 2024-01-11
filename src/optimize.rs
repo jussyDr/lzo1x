@@ -79,9 +79,6 @@ pub fn optimize(src: &mut [u8], decompressed_len: usize) -> Result<(), Error> {
                 dst[dst_idx] = src[src_idx];
                 dst_idx += 1;
                 src_idx += 1;
-                dst[dst_idx] = src[src_idx];
-                dst_idx += 1;
-                src_idx += 1;
 
                 state = 2;
             }
@@ -255,6 +252,7 @@ pub fn optimize(src: &mut [u8], decompressed_len: usize) -> Result<(), Error> {
 
                         if t == 0 {
                             t = 7;
+
                             while src[src_idx] == 0 {
                                 t += 255;
                                 src_idx += 1;
@@ -263,6 +261,7 @@ pub fn optimize(src: &mut [u8], decompressed_len: usize) -> Result<(), Error> {
                             t += src[src_idx] as usize;
                             src_idx += 1;
                         }
+
                         m_pos -= src[src_idx] as usize >> 2;
                         src_idx += 1;
                         m_pos -= (src[src_idx] as usize) << 6;
