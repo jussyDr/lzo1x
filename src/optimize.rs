@@ -222,6 +222,8 @@ pub fn optimize(src: &mut [u8], decompressed_len: usize) -> Result<(), Error> {
                             m_pos += 1;
 
                             state = 1;
+                        } else {
+                            state = 6;
                         }
                     }
                 } else {
