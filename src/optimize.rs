@@ -1,6 +1,15 @@
+use alloc::vec;
+
 use crate::Error;
 
-pub fn optimize(src: &mut [u8], dst: &mut [u8]) -> Result<(), Error> {
+/// Optimize LZO1X-compressed data given in `src` in terms of decompression speed.
+///
+/// The length of the original decompressed data needs to be provided in `decompressed_len`.
+///
+/// This does not change the length of the compressed data given in `src`.
+pub fn optimize(src: &mut [u8], decompressed_len: usize) -> Result<(), Error> {
+    let mut dst = vec![0; decompressed_len];
+
     let mut litp = None;
     let mut lit = 0;
     let mut next_lit = usize::MAX;
@@ -130,7 +139,7 @@ pub fn optimize(src: &mut [u8], dst: &mut [u8]) -> Result<(), Error> {
                             next_lit = nl;
                             lit += 2;
                             src[litp.unwrap()] = ((src[litp.unwrap()] as usize & !3) | lit) as u8;
-                            copy2(src, src_idx - 2, dst, m_pos, dst_idx - m_pos);
+                            copy2(src, src_idx - 2, &mut dst, m_pos, dst_idx - m_pos);
 
                             state = 4;
                         } else if nl == 0
@@ -141,7 +150,7 @@ pub fn optimize(src: &mut [u8], dst: &mut [u8]) -> Result<(), Error> {
                             t = src[src_idx] as usize;
                             src_idx += 1;
                             src[litp.unwrap()] &= !3;
-                            copy2(src, src_idx - 3 + 1, dst, m_pos, dst_idx - m_pos);
+                            copy2(src, src_idx - 3 + 1, &mut dst, m_pos, dst_idx - m_pos);
                             *litp.as_mut().unwrap() += 2;
 
                             if lit > 0 {
@@ -201,7 +210,7 @@ pub fn optimize(src: &mut [u8], dst: &mut [u8]) -> Result<(), Error> {
                         {
                             t = src[src_idx] as usize;
                             src_idx += 1;
-                            copy3(src, src_idx - 1 - 2, dst, m_pos, dst_idx - m_pos);
+                            copy3(src, src_idx - 1 - 2, &mut dst, m_pos, dst_idx - m_pos);
                             lit += 3 + t + 3;
                             src[litp.unwrap()] = (lit - 3) as u8;
 
@@ -278,7 +287,7 @@ pub fn optimize(src: &mut [u8], dst: &mut [u8]) -> Result<(), Error> {
                             next_lit = nl;
                             lit += 3;
                             src[litp.unwrap()] = ((src[litp.unwrap()] as usize & !3) | lit) as u8;
-                            copy3(src, src_idx - 3, dst, m_pos, dst_idx - m_pos);
+                            copy3(src, src_idx - 3, &mut dst, m_pos, dst_idx - m_pos);
                         } else if t == 1
                             && lit <= 3
                             && nl == 0
@@ -289,7 +298,7 @@ pub fn optimize(src: &mut [u8], dst: &mut [u8]) -> Result<(), Error> {
                             t = src[src_idx] as usize;
                             src_idx += 1;
                             src[litp.unwrap()] &= !3;
-                            copy3(src, src_idx - 4 + 1, dst, m_pos, dst_idx - m_pos);
+                            copy3(src, src_idx - 4 + 1, &mut dst, m_pos, dst_idx - m_pos);
                             *litp.as_mut().unwrap() += 2;
 
                             if lit > 0 {
