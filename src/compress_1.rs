@@ -1,3 +1,5 @@
+use alloc::{vec, vec::Vec};
+
 use crate::config::{
     M2_MAX_LEN, M2_MAX_OFFSET, M3_MARKER, M3_MAX_LEN, M3_MAX_OFFSET, M4_MARKER, M4_MAX_LEN,
 };

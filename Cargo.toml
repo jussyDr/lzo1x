@@ -2,7 +2,11 @@
 name = "lzo1x"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.75.0"
 
 [[test]]
 name = "test"
 harness = false
+
+[dev-dependencies]
+lzo-sys = "0.1.0"
