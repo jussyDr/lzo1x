@@ -9,4 +9,5 @@ name = "test"
 harness = false
 
 [dev-dependencies]
-lzo-sys = "0.1.0"
+lzo-sys = "0.3.0"
+zip = "0.6.6"
