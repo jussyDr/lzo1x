@@ -23,6 +23,11 @@ fn main() {
     add_corpus_tests(&mut tests, "corpora/calgary.zip");
     add_corpus_tests(&mut tests, "corpora/silesia.zip");
 
+    add_fuzz_crash_test(
+        &mut tests,
+        "tests/fuzz/crash-8e855f271031b6ba31529bdd41d7c5571eec732c",
+    );
+
     test_main(&args, tests, None);
 }
 
@@ -46,14 +51,7 @@ fn add_corpus_tests(tests: &mut Vec<TestDescAndFn>, path: impl AsRef<Path>) {
         let test = create_test(
             format!("roundtrip 1 {}", file.name()),
             Box::new(move || {
-                let compressed = lzo1x::compress_1(&data_ref);
-
-                assert!(compressed == lzo_sys_compress_1(&data_ref));
-
-                let mut decompressed = vec![0; data_ref.len()];
-                lzo1x::decompress(&compressed, &mut decompressed);
-
-                assert!(decompressed == *data_ref);
+                roundtrip_1(&data_ref);
 
                 Ok(())
             }),
@@ -64,14 +62,7 @@ fn add_corpus_tests(tests: &mut Vec<TestDescAndFn>, path: impl AsRef<Path>) {
         let test = create_test(
             format!("roundtrip 999 {}", file.name()),
             Box::new(move || {
-                let compressed = lzo1x::compress_999(&data);
-
-                assert!(compressed == lzo_sys_compress_999(&data));
-
-                let mut decompressed = vec![0; data.len()];
-                lzo1x::decompress(&compressed, &mut decompressed);
-
-                assert!(decompressed == *data);
+                roundtrip_999(&data);
 
                 Ok(())
             }),
@@ -79,6 +70,21 @@ fn add_corpus_tests(tests: &mut Vec<TestDescAndFn>, path: impl AsRef<Path>) {
 
         tests.push(test);
     }
+}
+
+fn add_fuzz_crash_test(tests: &mut Vec<TestDescAndFn>, path: &str) {
+    let data = fs::read(path).unwrap();
+
+    let test = create_test(
+        format!("roundtrip 1 {path}"),
+        Box::new(move || {
+            roundtrip_1(&data);
+
+            Ok(())
+        }),
+    );
+
+    tests.push(test);
 }
 
 fn create_test(
@@ -102,6 +108,28 @@ fn create_test(
         },
         testfn: TestFn::DynTestFn(test_fn),
     }
+}
+
+fn roundtrip_1(data: &[u8]) {
+    let compressed = lzo1x::compress_1(data);
+
+    assert!(compressed == lzo_sys_compress_1(data));
+
+    let mut decompressed = vec![0; data.len()];
+    lzo1x::decompress(&compressed, &mut decompressed);
+
+    assert!(decompressed == data);
+}
+
+fn roundtrip_999(data: &[u8]) {
+    let compressed = lzo1x::compress_999(data);
+
+    assert!(compressed == lzo_sys_compress_999(data));
+
+    let mut decompressed = vec![0; data.len()];
+    lzo1x::decompress(&compressed, &mut decompressed);
+
+    assert!(decompressed == data);
 }
 
 fn lzo_sys_compress_1(src: &[u8]) -> Vec<u8> {

@@ -227,7 +227,7 @@ fn compress(src: &[u8], d_bits: u32) -> Vec<u8> {
     if t > 0 {
         let ii = src_len - t;
 
-        if dst_idx == 0 && t < 238 {
+        if dst_idx == 0 && t <= 238 {
             dst[dst_idx] = 17 + t as u8;
             dst_idx += 1;
         } else if t <= 3 {
