@@ -152,7 +152,7 @@ fn create_roundtrip_999_test(name: &str, data: Arc<Vec<u8>>) -> TestDescAndFn {
 }
 
 fn roundtrip_1(data: &[u8]) {
-    let compressed = lzo1x::compress_1(data);
+    let compressed = lzo1x::compress(data, 3).unwrap();
 
     assert!(compressed == lzo_sys_compress_1(data));
 
@@ -163,11 +163,11 @@ fn roundtrip_1(data: &[u8]) {
 }
 
 fn roundtrip_1_optimize(data: &[u8]) {
-    let mut compressed = lzo1x::compress_1(data);
+    let mut compressed = lzo1x::compress(data, 3).unwrap();
 
     assert!(compressed == lzo_sys_compress_1(data));
 
-    lzo1x::optimize(&mut compressed, data.len()).unwrap();
+    lzo1x::optimize(&mut compressed, data.len());
 
     assert!(compressed == lzo_sys_optimize(&compressed, data.len()));
 
@@ -178,7 +178,7 @@ fn roundtrip_1_optimize(data: &[u8]) {
 }
 
 fn roundtrip_999(data: &[u8]) {
-    let compressed = lzo1x::compress_999(data);
+    let compressed = lzo1x::compress(data, 12).unwrap();
 
     assert!(compressed == lzo_sys_compress_999(data));
 

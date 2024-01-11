@@ -4,11 +4,7 @@ use crate::config::{
     M2_MAX_LEN, M2_MAX_OFFSET, M3_MARKER, M3_MAX_LEN, M3_MAX_OFFSET, M4_MARKER, M4_MAX_LEN,
 };
 
-pub fn compress_1(src: &[u8]) -> Vec<u8> {
-    compress(src, 14)
-}
-
-fn compress(src: &[u8], d_bits: u32) -> Vec<u8> {
+pub fn compress_1(src: &[u8], d_bits: u32) -> Vec<u8> {
     let src_len = src.len();
 
     let mut dst = vec![0; src_len + (src_len / 16) + 64 + 3];

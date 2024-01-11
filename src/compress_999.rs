@@ -5,19 +5,27 @@ use crate::{
         M1_MARKER, M1_MAX_OFFSET, M2_MAX_LEN, M2_MAX_OFFSET, M2_MIN_LEN, M3_MARKER, M3_MAX_LEN,
         M3_MAX_OFFSET, M4_MARKER, M4_MAX_LEN, M4_MAX_OFFSET, MX_MAX_OFFSET,
     },
-    swd::{Swd, SWD_F, SWD_MAX_CHAIN, SWD_THRESHOLD},
+    swd::{Swd, SWD_MAX_CHAIN, SWD_THRESHOLD},
 };
 
-pub fn compress_999(src: &[u8]) -> Vec<u8> {
+pub fn compress_999(
+    src: &[u8],
+    try_lazy_parm: i32,
+    good_length: usize,
+    max_lazy: usize,
+    nice_length: usize,
+    max_chain: usize,
+    flags: u32,
+) -> Vec<u8> {
     let mut dst = vec![0; src.len() + (src.len() / 16) + 64 + 3];
 
     let params = Params {
-        try_lazy_parm: 2,
-        good_length: 32,
-        max_lazy: 128,
-        nice_length: SWD_F,
-        max_chain: 2048,
-        flags: 1,
+        try_lazy_parm,
+        good_length,
+        max_lazy,
+        nice_length,
+        max_chain,
+        flags,
     };
 
     let dst_len = compress_internal(src, &mut dst, params);

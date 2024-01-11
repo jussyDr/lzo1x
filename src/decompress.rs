@@ -1,10 +1,21 @@
 /// Decompress the given `src` into the given `dst`.
 ///
-/// This function will panic if `src` does not contain valid LZO1X-compressed data,
-/// or if `dst` is not large enough to hold the decompressed data.
+/// #### Panics
 ///
-/// You can use `decompress_checked` if you need a function that returns an error
-/// instead of panicking, at a slight runtime cost.
+/// Panics if the given `src` does not contain valid compressed data,
+/// or if the given `dst` does not match the length of the decompressed data.
+///
+/// # Examples
+///
+/// ```
+/// let data = &[0xaa; 100];
+/// let compressed = lzo1x::compress(data, 3).unwrap();
+///
+/// let mut decompressed = vec![0; data.len()];
+/// lzo1x::decompress(&compressed, &mut decompressed);
+///
+/// assert_eq!(decompressed, data);
+/// ```
 pub fn decompress(src: &[u8], dst: &mut [u8]) {
     let mut src_idx = 0;
     let mut dst_idx = 0;
@@ -196,7 +207,11 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) {
         }
     }
 
-    if dst_idx != dst.len() {
-        panic!()
+    if src_idx < src.len() {
+        panic!();
+    }
+
+    if dst_idx < dst.len() {
+        panic!();
     }
 }

@@ -1,13 +1,26 @@
 use alloc::vec;
 
-use crate::Error;
-
 /// Optimize LZO1X-compressed data given in `src` in terms of decompression speed.
 ///
-/// The length of the original decompressed data needs to be provided in `decompressed_len`.
+/// The length of the original decompressed data should be given in `decompressed_len`.
 ///
-/// This does not change the length of the compressed data given in `src`.
-pub fn optimize(src: &mut [u8], decompressed_len: usize) -> Result<(), Error> {
+/// The length of the compressed data will not change,
+/// and this will likely only give a decompression speed-up of around 1-3%.
+///
+/// #### Panics
+///
+/// Panics if the given `src` does not contain valid compressed data,
+/// or if the given `decompressed_len` was not large enough.
+///
+/// # Examples
+///
+/// ```
+/// let data = &[0xaa; 100];
+/// let mut compressed = lzo1x::compress(data, 3).unwrap();
+///
+/// lzo1x::optimize(&mut compressed, data.len());
+/// ```
+pub fn optimize(src: &mut [u8], decompressed_len: usize) {
     let mut dst = vec![0; decompressed_len];
 
     let mut litp = None;
@@ -41,7 +54,7 @@ pub fn optimize(src: &mut [u8], decompressed_len: usize) -> Result<(), Error> {
         match state {
             0 => {
                 if src_idx >= src.len() || dst_idx > dst.len() {
-                    return Err(Error);
+                    panic!();
                 }
 
                 t = src[src_idx] as usize;
@@ -270,12 +283,11 @@ pub fn optimize(src: &mut [u8], decompressed_len: usize) -> Result<(), Error> {
                         src_idx += 1;
 
                         if m_pos == dst_idx {
-                            // *out_len = dst_idx;
+                            if src_idx < src.len() {
+                                panic!();
+                            }
 
-                            // return (ip == ip_end ? LZO_E_OK :
-                            //        (ip < ip_end  ? LZO_E_INPUT_NOT_CONSUMED : LZO_E_INPUT_OVERRUN));
-
-                            return Ok(());
+                            return;
                         }
 
                         m_pos -= 0x4000;

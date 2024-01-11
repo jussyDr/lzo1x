@@ -7,11 +7,11 @@ use std::{ffi::c_void, mem::MaybeUninit, ptr::null_mut};
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {
-    let mut compressed = lzo1x::compress_1(data);
+    let mut compressed = lzo1x::compress(data, 3).unwrap();
 
     assert!(compressed == lzo_sys_compress_1(&data));
 
-    lzo1x::optimize(&mut compressed, data.len()).unwrap();
+    lzo1x::optimize(&mut compressed, data.len());
 
     assert!(compressed == lzo_sys_optimize(&compressed, data.len()));
 
