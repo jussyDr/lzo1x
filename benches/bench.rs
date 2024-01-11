@@ -2,7 +2,7 @@
 
 extern crate test;
 
-use std::{fs::File, io::Read};
+use std::{ffi::c_void, fs::File, io::Read, mem::MaybeUninit, ptr::null_mut};
 
 use test::Bencher;
 use zip::ZipArchive;
@@ -37,6 +37,39 @@ fn decompress(b: &mut Bencher) {
     })
 }
 
+#[ignore]
+#[bench]
+fn compress_1_sys(b: &mut Bencher) {
+    let data = bench_data();
+
+    b.iter(|| {
+        lzo_sys_compress_1(&data);
+    })
+}
+
+#[ignore]
+#[bench]
+fn compress_999_sys(b: &mut Bencher) {
+    let data = bench_data();
+
+    b.iter(|| {
+        lzo_sys_compress_999(&data);
+    })
+}
+
+#[ignore]
+#[bench]
+fn decompress_sys(b: &mut Bencher) {
+    let data = bench_data();
+    let compressed = lzo1x::compress(&data, 3).unwrap();
+
+    let mut decompressed = vec![0; data.len()];
+
+    b.iter(|| {
+        lzo_sys_decompress(&compressed, &mut decompressed);
+    })
+}
+
 fn bench_data() -> Vec<u8> {
     let zip_file = File::open("corpora/calgary.zip").unwrap();
     let mut zip_archive = ZipArchive::new(zip_file).unwrap();
@@ -46,4 +79,48 @@ fn bench_data() -> Vec<u8> {
     file.read_to_end(&mut data).unwrap();
 
     data
+}
+
+fn lzo_sys_compress_1(src: &[u8]) -> Vec<u8> {
+    lzo_sys_compress(src, lzo_sys::lzo1x::lzo1x_1_compress)
+}
+
+fn lzo_sys_compress_999(src: &[u8]) -> Vec<u8> {
+    lzo_sys_compress(src, lzo_sys::lzo1x::lzo1x_999_compress)
+}
+
+fn lzo_sys_compress(src: &[u8], compress_fn: lzo_sys::lzoconf::lzo_compress_t) -> Vec<u8> {
+    let mut dst = vec![0; src.len() + (src.len() / 16) + 64 + 3];
+    let mut dst_len = MaybeUninit::uninit();
+    let mut wrkmem = vec![0; lzo_sys::lzo1x::LZO1X_1_MEM_COMPRESS as usize];
+
+    unsafe {
+        compress_fn(
+            src.as_ptr(),
+            src.len(),
+            dst.as_mut_ptr(),
+            dst_len.as_mut_ptr(),
+            wrkmem.as_mut_ptr() as *mut c_void,
+        )
+    };
+
+    let dst_len = unsafe { dst_len.assume_init() };
+
+    dst.resize(dst_len, 0);
+
+    dst
+}
+
+fn lzo_sys_decompress(src: &[u8], dst: &mut [u8]) {
+    unsafe {
+        let mut dst_len = dst.len();
+
+        lzo_sys::lzo1x::lzo1x_decompress(
+            src.as_ptr(),
+            src.len(),
+            dst.as_mut_ptr(),
+            &mut dst_len,
+            null_mut(),
+        )
+    };
 }
