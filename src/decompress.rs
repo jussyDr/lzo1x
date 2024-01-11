@@ -1,6 +1,11 @@
-use crate::Error;
-
-pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), Error> {
+/// Decompress the given `src` into the given `dst`.
+///
+/// This function will panic if `src` does not contain valid LZO1X-compressed data,
+/// or if `dst` is not large enough to hold the decompressed data.
+///
+/// You can use `decompress_checked` if you need a function that returns an error
+/// instead of panicking, at a slight runtime cost.
+pub fn decompress(src: &[u8], dst: &mut [u8]) {
     let mut src_idx = 0;
     let mut dst_idx = 0;
 
@@ -194,6 +199,4 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), Error> {
     if dst_idx != dst.len() {
         panic!()
     }
-
-    Ok(())
 }

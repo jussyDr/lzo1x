@@ -13,7 +13,7 @@ pub const SWD_MAX_CHAIN: usize = 2048;
 
 const NIL2: u16 = u16::MAX;
 
-pub struct Swd<'a> {
+pub struct Swd {
     swd_f: usize,
     pub max_chain: usize,
     pub nice_length: usize,
@@ -23,7 +23,6 @@ pub struct Swd<'a> {
     pub look: usize,
     pub b_char: i32,
     pub best_off: [usize; SWD_BEST_OFF],
-    c: &'a mut Compress<'a>,
     m_pos: usize,
     pub best_pos: [usize; SWD_BEST_OFF],
     ip: usize,
@@ -40,8 +39,8 @@ pub struct Swd<'a> {
     head2: [u16; 65536],
 }
 
-impl<'a> Swd<'a> {
-    pub fn new(c: &'a mut Compress<'a>) -> Self {
+impl Swd {
+    pub fn new(c: &mut Compress) -> Self {
         let mut ip = 0;
 
         let mut look = c.src.len() - c.src_idx;
@@ -86,7 +85,6 @@ impl<'a> Swd<'a> {
             look,
             b_char: 0,
             best_off: [0; SWD_BEST_OFF],
-            c,
             m_pos: 0,
             best_pos: [0; SWD_BEST_OFF],
             ip,
@@ -258,7 +256,7 @@ impl<'a> Swd<'a> {
         self.head2[key] = self.bp as u16;
     }
 
-    pub fn accept(&mut self, mut n: usize) {
+    pub fn accept(&mut self, c: &mut Compress, mut n: usize) {
         while n != 0 {
             self.remove_node(self.rp);
 
@@ -277,22 +275,22 @@ impl<'a> Swd<'a> {
             let key = head2(&self.b, self.bp);
             self.head2[key] = self.bp as u16;
 
-            self.get_byte();
+            self.get_byte(c);
 
             n -= 1;
         }
     }
 
-    pub fn get_byte(&mut self) {
-        let c = if self.c.src_idx < self.c.src.len() {
-            let c = self.c.src[self.c.src_idx];
-            self.c.src_idx += 1;
-            c as i16
+    pub fn get_byte(&mut self, c: &mut Compress) {
+        let ch = if c.src_idx < c.src.len() {
+            let ch = c.src[c.src_idx];
+            c.src_idx += 1;
+            ch as i16
         } else {
             -1
         };
 
-        if c < 0 {
+        if ch < 0 {
             if self.look > 0 {
                 self.look -= 1;
             }
@@ -303,10 +301,10 @@ impl<'a> Swd<'a> {
                 self.b[self.b_wrap + self.ip] = 0;
             }
         } else {
-            self.b[self.ip] = c as u8;
+            self.b[self.ip] = ch as u8;
 
             if self.ip < self.swd_f {
-                self.b[self.b_wrap + self.ip] = c as u8;
+                self.b[self.b_wrap + self.ip] = ch as u8;
             }
         }
 

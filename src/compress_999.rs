@@ -18,7 +18,7 @@ pub fn compress_999(src: &[u8]) -> Vec<u8> {
         flags: 1,
     };
 
-    let dst_len = unsafe { compress_internal(src, &mut dst, params) };
+    let dst_len = compress_internal(src, &mut dst, params);
 
     dst.resize(dst_len, 0);
     dst
@@ -58,7 +58,7 @@ pub struct Compress<'a> {
     lit3_r: usize,
 }
 
-unsafe fn compress_internal(src: &[u8], dst: &mut [u8], params: Params) -> usize {
+fn compress_internal(src: &[u8], dst: &mut [u8], params: Params) -> usize {
     let try_lazy_parm = params.try_lazy_parm;
     let mut good_length = params.good_length;
     let mut max_lazy = params.max_lazy;
@@ -117,7 +117,7 @@ unsafe fn compress_internal(src: &[u8], dst: &mut [u8], params: Params) -> usize
     let mut ii = 0;
     let mut lit = 0;
 
-    let mut swd = Swd::new(&mut *(c as *mut Compress));
+    let mut swd = Swd::new(c);
     swd.use_best_off = flags & 1 != 0;
 
     if max_chain > 0 {
@@ -547,7 +547,7 @@ fn min_gain(ahead: usize, lit1: usize, lit2: usize, l1: usize, l2: usize, l3: us
 
 fn find_match(c: &mut Compress, s: &mut Swd, this_len: usize, skip: usize) {
     if skip > 0 {
-        s.accept(this_len - skip);
+        s.accept(c, this_len - skip);
         c.textsize += this_len - skip + 1;
     } else {
         c.textsize += this_len - skip;
@@ -564,7 +564,7 @@ fn find_match(c: &mut Compress, s: &mut Swd, this_len: usize, skip: usize) {
     c.m_len = s.m_len;
     c.m_off = s.m_off;
 
-    s.get_byte();
+    s.get_byte(c);
 
     if s.b_char < 0 {
         c.look = 0;

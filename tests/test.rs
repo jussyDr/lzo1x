@@ -111,7 +111,7 @@ fn test_roundtrip_1(path: impl AsRef<Path>, compressed_len: usize) {
     assert_eq!(compressed.len(), compressed_len);
 
     let mut decompressed = vec![0; data.len()];
-    lzo1x::decompress(&compressed, &mut decompressed).unwrap();
+    lzo1x::decompress(&compressed, &mut decompressed);
 
     assert!(decompressed == data);
 }
@@ -124,7 +124,7 @@ fn test_roundtrip_999(path: impl AsRef<Path>, compressed_len: usize) {
     assert_eq!(compressed.len(), compressed_len);
 
     let mut decompressed = vec![0; data.len()];
-    lzo1x::decompress(&compressed, &mut decompressed).unwrap();
+    lzo1x::decompress(&compressed, &mut decompressed);
 
     assert!(decompressed == data);
 }
