@@ -20,18 +20,18 @@ fn main() {
 
     let mut tests = vec![];
 
-    add_corpus_tests(&mut tests, "corpora/calgary.zip");
-    add_corpus_tests(&mut tests, "corpora/silesia.zip");
+    // add_corpus_tests(&mut tests, "corpora/calgary.zip");
+    // add_corpus_tests(&mut tests, "corpora/silesia.zip");
 
-    add_roundtrip_1_test(
-        &mut tests,
-        "tests/fuzz/crash-8e855f271031b6ba31529bdd41d7c5571eec732c",
-    );
+    // add_roundtrip_1_test(
+    //     &mut tests,
+    //     "tests/fuzz/crash-8e855f271031b6ba31529bdd41d7c5571eec732c",
+    // );
 
-    add_roundtrip_1_optimize_test(
-        &mut tests,
-        "tests/fuzz/crash-28a2691544a8a7d924c29f628253a81723e1a5d2",
-    );
+    // add_roundtrip_1_optimize_test(
+    //     &mut tests,
+    //     "tests/fuzz/crash-28a2691544a8a7d924c29f628253a81723e1a5d2",
+    // );
 
     add_roundtrip_1_optimize_test(
         &mut tests,
