@@ -178,7 +178,7 @@ fn roundtrip_1_optimize(data: &[u8]) {
 }
 
 fn roundtrip_999(data: &[u8]) {
-    let mut compressed = lzo1x::compress_999(data);
+    let compressed = lzo1x::compress_999(data);
 
     assert!(compressed == lzo_sys_compress_999(data));
 

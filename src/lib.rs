@@ -18,5 +18,6 @@ pub use compress_999::compress_999;
 pub use decompress::decompress;
 pub use optimize::optimize;
 
+/// LZO1X error.
 #[derive(Debug)]
 pub struct Error;
