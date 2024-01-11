@@ -2,7 +2,7 @@
 
 extern crate libfuzzer_sys;
 
-use std::{ffi::c_void, mem::MaybeUninit};
+use std::{ffi::c_void, mem::MaybeUninit, ptr::null_mut};
 
 use libfuzzer_sys::fuzz_target;
 
@@ -13,7 +13,7 @@ fuzz_target!(|data: &[u8]| {
 
     lzo1x::optimize(&mut compressed, data.len()).unwrap();
 
-    assert!(compressed == lzo_sys_optimize(&compressed));
+    assert!(compressed == lzo_sys_optimize(&compressed, data.len()));
 
     let mut decompressed = vec![0; data.len()];
     lzo1x::decompress(&compressed, &mut decompressed);

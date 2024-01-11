@@ -32,3 +32,9 @@ name = "fuzz_999"
 path = "fuzz_targets/fuzz_999.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "fuzz_1_optimize"
+path = "fuzz_targets/fuzz_1_optimize.rs"
+test = false
+doc = false
