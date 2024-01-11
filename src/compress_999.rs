@@ -9,10 +9,28 @@ use crate::{
 pub fn compress_999(src: &[u8]) -> Vec<u8> {
     let mut dst = vec![0; src.len() + (src.len() / 16) + 64 + 3];
 
-    let dst_len = unsafe { compress_internal(src, &mut dst, 2, 32, 128, SWD_F, 2048, 1) };
+    let params = Params {
+        try_lazy_parm: 2,
+        good_length: 32,
+        max_lazy: 128,
+        nice_length: SWD_F,
+        max_chain: 2048,
+        flags: 1,
+    };
+
+    let dst_len = unsafe { compress_internal(src, &mut dst, params) };
 
     dst.resize(dst_len, 0);
     dst
+}
+
+struct Params {
+    try_lazy_parm: i32,
+    good_length: usize,
+    max_lazy: usize,
+    nice_length: usize,
+    max_chain: usize,
+    flags: u32,
 }
 
 pub struct Compress<'a> {
@@ -40,16 +58,14 @@ pub struct Compress<'a> {
     lit3_r: usize,
 }
 
-unsafe fn compress_internal(
-    src: &[u8],
-    dst: &mut [u8],
-    try_lazy_parm: i32,
-    mut good_length: usize,
-    mut max_lazy: usize,
-    mut nice_length: usize,
-    mut max_chain: usize,
-    flags: u32,
-) -> usize {
+unsafe fn compress_internal(src: &[u8], dst: &mut [u8], params: Params) -> usize {
+    let try_lazy_parm = params.try_lazy_parm;
+    let mut good_length = params.good_length;
+    let mut max_lazy = params.max_lazy;
+    let mut nice_length = params.nice_length;
+    let mut max_chain = params.max_chain;
+    let flags = params.flags;
+
     let mut try_lazy: usize = try_lazy_parm as usize;
 
     if try_lazy_parm < 0 {
@@ -224,7 +240,6 @@ unsafe fn compress_internal(
         }
     }
 
-    /* store final run */
     if lit > 0 {
         dst_idx = store_run(c, dst, dst_idx, src, ii, lit);
     }
