@@ -20,7 +20,7 @@ pub struct Swd<'a> {
     pub use_best_off: bool,
     pub m_len: usize,
     pub m_off: usize,
-    look: usize,
+    pub look: usize,
     pub b_char: i32,
     pub best_off: [usize; SWD_BEST_OFF],
     c: &'a mut Compress<'a>,
@@ -139,13 +139,21 @@ impl<'a> Swd<'a> {
                 && b[p2] == b[p1]
                 && b[p2 + 1] == b[p1 + 1]
             {
-                p1 += 3;
-                p2 += 3;
+                p1 += 2;
+                p2 += 2;
 
-                while p1 < px {
-                    b[p1] = b[p2];
+                loop {
                     p1 += 1;
+
+                    if p1 >= px {
+                        break;
+                    }
+
                     p2 += 1;
+
+                    if b[p1] != b[p2] {
+                        break;
+                    }
                 }
 
                 let i = p1 - bp;
@@ -255,11 +263,13 @@ impl<'a> Swd<'a> {
             self.remove_node(self.rp);
 
             let key = head3(&self.b, self.bp);
+
             self.succ3[self.bp] = if self.llen3[key] == 0 {
                 u16::MAX
             } else {
                 self.head3[key] as u16
             };
+
             self.head3[key] = self.bp as u16;
             self.best3[self.bp] = (self.swd_f + 1) as u16;
             self.llen3[key] += 1;

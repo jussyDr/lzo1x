@@ -25,7 +25,6 @@ pub struct Compress<'a> {
     pub src_idx: usize,
     pub src: &'a [u8],
     textsize: usize,
-    codesize: usize,
     lit_bytes: usize,
     match_bytes: usize,
     lazy: usize,
@@ -83,7 +82,6 @@ unsafe fn compress_internal(
         src_idx: 0,
         src,
         textsize: 0,
-        codesize: 0,
         lit_bytes: 0,
         match_bytes: 0,
         lazy: 0,
@@ -120,8 +118,6 @@ unsafe fn compress_internal(
     let mut m_off;
 
     while c.look > 0 {
-        c.codesize = dst_idx;
-
         m_len = c.m_len;
         m_off = c.m_off;
 
@@ -163,58 +159,62 @@ unsafe fn compress_internal(
 
         let mut l2;
 
-        if ahead < max_ahead && c.look > m_len {
-            while ahead < max_ahead && c.look > m_len {
-                if m_len >= good_length {
-                    swd.max_chain = max_chain >> 2;
-                } else {
-                    swd.max_chain = max_chain;
-                }
+        let mut flag = true;
 
-                find_match(c, &mut swd, 1, 0);
-                ahead += 1;
-
-                if c.m_len < m_len {
-                    continue;
-                }
-
-                if c.m_len == m_len && c.m_off >= m_off {
-                    continue;
-                }
-
-                if swd.use_best_off {
-                    better_match(&mut swd, &mut c.m_len, &mut c.m_off);
-                }
-
-                l2 = len_of_coded_match(c.m_len, c.m_off, lit + ahead);
-
-                if l2 == 0 {
-                    continue;
-                }
-
-                let l3 = if dst_idx == 0 {
-                    0
-                } else {
-                    len_of_coded_match(ahead, m_off, lit)
-                };
-
-                let lazy_match_min_gain = min_gain(ahead, lit, lit + ahead, l1, l2, l3);
-
-                if c.m_len >= m_len + lazy_match_min_gain {
-                    c.lazy += 1;
-
-                    if l3 != 0 {
-                        dst_idx = code_run(c, dst, dst_idx, src, ii, lit, ahead);
-                        lit = 0;
-                        dst_idx = code_match(c, dst, dst_idx, ahead, m_off);
-                    } else {
-                        lit += ahead;
-                    }
-
-                    break;
-                }
+        while ahead < max_ahead && c.look > m_len {
+            if m_len >= good_length {
+                swd.max_chain = max_chain >> 2;
+            } else {
+                swd.max_chain = max_chain;
             }
-        } else {
+
+            find_match(c, &mut swd, 1, 0);
+            ahead += 1;
+
+            if c.m_len < m_len {
+                continue;
+            }
+
+            if c.m_len == m_len && c.m_off >= m_off {
+                continue;
+            }
+
+            if swd.use_best_off {
+                better_match(&mut swd, &mut c.m_len, &mut c.m_off);
+            }
+
+            l2 = len_of_coded_match(c.m_len, c.m_off, lit + ahead);
+
+            if l2 == 0 {
+                continue;
+            }
+
+            let l3 = if dst_idx == 0 {
+                0
+            } else {
+                len_of_coded_match(ahead, m_off, lit)
+            };
+
+            let lazy_match_min_gain = min_gain(ahead, lit, lit + ahead, l1, l2, l3);
+
+            if c.m_len >= m_len + lazy_match_min_gain {
+                c.lazy += 1;
+
+                if l3 != 0 {
+                    dst_idx = code_run(c, dst, dst_idx, src, ii, lit, ahead);
+                    lit = 0;
+                    dst_idx = code_match(c, dst, dst_idx, ahead, m_off);
+                } else {
+                    lit += ahead;
+                }
+
+                flag = false;
+
+                break;
+            }
+        }
+
+        if flag {
             dst_idx = code_run(c, dst, dst_idx, src, ii, lit, m_len);
             lit = 0;
 
@@ -235,8 +235,6 @@ unsafe fn compress_internal(
     dst_idx += 1;
     dst[dst_idx] = 0;
     dst_idx += 1;
-
-    c.codesize = dst_idx;
 
     dst_idx
 }
@@ -278,11 +276,16 @@ fn store_run(
         c.lit3_r += 1;
     }
 
-    while t > 0 {
+    if t == 0 {
         dst[dst_idx] = src[ii];
         dst_idx += 1;
-        ii += 1;
-        t -= 1;
+    } else {
+        while t > 0 {
+            dst[dst_idx] = src[ii];
+            dst_idx += 1;
+            ii += 1;
+            t -= 1;
+        }
     }
 
     dst_idx
@@ -446,6 +449,7 @@ fn better_match(swd: &mut Swd, m_len: &mut usize, m_off: &mut usize) {
         *m_off = swd.best_off[*m_len];
     }
 }
+
 fn len_of_coded_match(mut m_len: usize, m_off: usize, lit: usize) -> usize {
     let mut n = 4;
 
@@ -505,7 +509,7 @@ fn len_of_coded_match(mut m_len: usize, m_off: usize, lit: usize) -> usize {
 fn min_gain(ahead: usize, lit1: usize, lit2: usize, l1: usize, l2: usize, l3: usize) -> usize {
     let mut lazy_match_min_gain;
 
-    lazy_match_min_gain = ahead;
+    lazy_match_min_gain = ahead as isize;
 
     if lit1 <= 3 {
         lazy_match_min_gain += if lit2 <= 3 { 0 } else { 2 };
@@ -513,17 +517,17 @@ fn min_gain(ahead: usize, lit1: usize, lit2: usize, l1: usize, l2: usize, l3: us
         lazy_match_min_gain += if lit2 <= 18 { 0 } else { 1 };
     }
 
-    lazy_match_min_gain += (l2 - l1) * 2;
+    lazy_match_min_gain += (l2 as isize - l1 as isize) * 2;
 
     if l3 != 0 {
-        lazy_match_min_gain -= (ahead - l3) * 2;
+        lazy_match_min_gain -= (ahead as isize - l3 as isize) * 2;
     }
 
-    if (lazy_match_min_gain as isize) < 0 {
+    if lazy_match_min_gain.is_negative() {
         lazy_match_min_gain = 0;
     }
 
-    lazy_match_min_gain
+    lazy_match_min_gain as usize
 }
 
 fn find_match(c: &mut Compress, s: &mut Swd, this_len: usize, skip: usize) {
@@ -551,7 +555,7 @@ fn find_match(c: &mut Compress, s: &mut Swd, this_len: usize, skip: usize) {
         c.look = 0;
         c.m_len = 0;
     } else {
-        c.look += 1;
+        c.look = s.look + 1;
     }
 
     c.bp = c.src_idx - c.look;
