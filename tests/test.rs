@@ -33,6 +33,11 @@ fn main() {
         "tests/fuzz/crash-28a2691544a8a7d924c29f628253a81723e1a5d2",
     );
 
+    add_roundtrip_1_optimize_test(
+        &mut tests,
+        "tests/fuzz/crash-473a6b31e947e033b066600e097ab0fda1e62ed8",
+    );
+
     test_main(&args, tests, None);
 }
 
