@@ -1,6 +1,14 @@
 #![feature(test)]
 
-use std::{env, ffi::c_void, fs::File, io::Read, mem::MaybeUninit, path::Path, sync::Arc};
+use std::{
+    env,
+    ffi::c_void,
+    fs::{self, File},
+    io::Read,
+    mem::MaybeUninit,
+    path::Path,
+    sync::Arc,
+};
 
 use test::{test_main, ShouldPanic, TestDesc, TestDescAndFn, TestFn, TestName, TestType};
 use zip::ZipArchive;
