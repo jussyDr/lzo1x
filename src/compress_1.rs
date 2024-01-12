@@ -115,7 +115,15 @@ pub fn compress_1(src: &[u8], d_bits: u32) -> Vec<u8> {
                             break;
                         }
                     } else {
-                        m_len += v.trailing_zeros() as usize / 8;
+                        #[cfg(target_endian = "little")]
+                        {
+                            m_len += v.trailing_zeros() as usize / 8;
+                        }
+
+                        #[cfg(target_endian = "big")]
+                        {
+                            m_len += v.leading_zeros() as usize / 8;
+                        }
 
                         break;
                     }
