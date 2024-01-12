@@ -95,52 +95,28 @@ pub fn compress_1(src: &[u8], d_bits: u32) -> Vec<u8> {
 
                 let mut m_len = 4;
 
-                while src[src_idx + m_len] == src[m_pos + m_len] {
-                    m_len += 1;
+                loop {
+                    let a = u64::from_ne_bytes(
+                        src[src_idx + m_len..src_idx + m_len + 8]
+                            .try_into()
+                            .unwrap(),
+                    );
 
-                    if src[src_idx + m_len] != src[m_pos + m_len] {
-                        break;
-                    }
+                    let b = u64::from_ne_bytes(
+                        src[m_pos + m_len..m_pos + m_len + 8].try_into().unwrap(),
+                    );
 
-                    m_len += 1;
+                    let v = a ^ b;
 
-                    if src[src_idx + m_len] != src[m_pos + m_len] {
-                        break;
-                    }
+                    if v == 0 {
+                        m_len += 8;
 
-                    m_len += 1;
+                        if src_idx + m_len >= src_start + src_len - 20 {
+                            break;
+                        }
+                    } else {
+                        m_len += v.trailing_zeros() as usize / 8;
 
-                    if src[src_idx + m_len] != src[m_pos + m_len] {
-                        break;
-                    }
-
-                    m_len += 1;
-
-                    if src[src_idx + m_len] != src[m_pos + m_len] {
-                        break;
-                    }
-
-                    m_len += 1;
-
-                    if src[src_idx + m_len] != src[m_pos + m_len] {
-                        break;
-                    }
-
-                    m_len += 1;
-
-                    if src[src_idx + m_len] != src[m_pos + m_len] {
-                        break;
-                    }
-
-                    m_len += 1;
-
-                    if src[src_idx + m_len] != src[m_pos + m_len] {
-                        break;
-                    }
-
-                    m_len += 1;
-
-                    if src_idx + m_len >= src_start + src_len - 20 {
                         break;
                     }
                 }
