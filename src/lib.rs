@@ -85,6 +85,7 @@ pub fn compress(src: &[u8], level: CompressLevel) -> Vec<u8> {
 }
 
 /// LZO1X compression level.
+#[derive(Clone, Copy)]
 pub struct CompressLevel(u8);
 
 impl CompressLevel {
