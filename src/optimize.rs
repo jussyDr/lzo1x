@@ -16,7 +16,7 @@ use alloc::vec;
 ///
 /// ```
 /// let data = &[0xaa; 100];
-/// let mut compressed = lzo1x::compress(data, 3).unwrap();
+/// let mut compressed = lzo1x::compress(data, lzo1x::CompressLevel::default());
 ///
 /// lzo1x::optimize(&mut compressed, data.len());
 /// ```

@@ -9,7 +9,7 @@
 ///
 /// ```
 /// let data = &[0xaa; 100];
-/// let compressed = lzo1x::compress(data, 3).unwrap();
+/// let compressed = lzo1x::compress(data, lzo1x::CompressLevel::default());
 ///
 /// let mut decompressed = vec![0; data.len()];
 /// lzo1x::decompress(&compressed, &mut decompressed);

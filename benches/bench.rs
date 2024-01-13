@@ -4,6 +4,7 @@ extern crate test;
 
 use std::{ffi::c_void, fs::File, io::Read, mem::MaybeUninit, ptr::null_mut};
 
+use lzo1x::CompressLevel;
 use test::Bencher;
 use zip::ZipArchive;
 
@@ -12,7 +13,7 @@ fn compress_1(b: &mut Bencher) {
     let data = bench_data();
 
     b.iter(|| {
-        lzo1x::compress(&data, 3).unwrap();
+        lzo1x::compress(&data, CompressLevel::new(3).unwrap());
     })
 }
 
@@ -21,14 +22,14 @@ fn compress_999(b: &mut Bencher) {
     let data = bench_data();
 
     b.iter(|| {
-        lzo1x::compress(&data, 12).unwrap();
+        lzo1x::compress(&data, CompressLevel::new(12).unwrap());
     })
 }
 
 #[bench]
 fn decompress(b: &mut Bencher) {
     let data = bench_data();
-    let compressed = lzo1x::compress(&data, 3).unwrap();
+    let compressed = lzo1x::compress(&data, CompressLevel::new(3).unwrap());
 
     let mut decompressed = vec![0; data.len()];
 
@@ -61,7 +62,7 @@ fn compress_999_sys(b: &mut Bencher) {
 #[bench]
 fn decompress_sys(b: &mut Bencher) {
     let data = bench_data();
-    let compressed = lzo1x::compress(&data, 3).unwrap();
+    let compressed = lzo1x::compress(&data, CompressLevel::default());
 
     let mut decompressed = vec![0; data.len()];
 

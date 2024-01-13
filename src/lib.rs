@@ -10,7 +10,7 @@
 //!
 //! ```
 //! let data = &[0xaa; 100];
-//! let compressed = lzo1x::compress(data, 3).unwrap();
+//! let compressed = lzo1x::compress(data, lzo1x::CompressLevel::default());
 //!
 //! assert_eq!(compressed.len(), 34);
 //!
@@ -24,7 +24,7 @@
 //!
 //! ```
 //! let data = &[0xaa; 100];
-//! let mut compressed = lzo1x::compress(data, 13).unwrap();
+//! let mut compressed = lzo1x::compress(data, lzo1x::CompressLevel::new(13).unwrap());
 //!
 //! assert_eq!(compressed.len(), 9);
 //!
@@ -57,22 +57,16 @@ use compress_999::compress_999;
 ///
 /// A higher compression level results in a better compression ratio, at the cost of a longer runtime.
 ///
-/// A good default compression level is 3.
-///
-/// #### Errors
-///
-/// The compression level should be between 1 and 13, otherwise an error is returned.
-///
 /// # Examples
 ///
 /// ```
 /// let data = &[0xaa; 100];
-/// let compressed = lzo1x::compress(data, 3).unwrap();
+/// let compressed = lzo1x::compress(data, lzo1x::CompressLevel::default());
 ///
 /// assert_eq!(compressed.len(), 34);
 /// ```
-pub fn compress(src: &[u8], level: u8) -> Result<Vec<u8>, CompressLevelError> {
-    let compressed = match level {
+pub fn compress(src: &[u8], level: CompressLevel) -> Vec<u8> {
+    match level.0 {
         1 => compress_1(src, 11),
         2 => compress_1(src, 12),
         3 => compress_1(src, 14),
@@ -86,12 +80,30 @@ pub fn compress(src: &[u8], level: u8) -> Result<Vec<u8>, CompressLevelError> {
         11 => compress_999(src, 2, 8, 32, 128, 256, 0),
         12 => compress_999(src, 2, 32, 128, 2048, 2048, 1),
         13 => compress_999(src, 2, 2048, 2048, 2048, 4096, 1),
-        _ => return Err(CompressLevelError),
-    };
-
-    Ok(compressed)
+        _ => unreachable!(),
+    }
 }
 
-/// Error returned if the provided compression level is not in the range 1 to 13.
-#[derive(Debug)]
-pub struct CompressLevelError;
+/// LZO1X compression level.
+pub struct CompressLevel(u8);
+
+impl CompressLevel {
+    /// Create a new `CompressLevel` instance from the given `level`.
+    ///
+    /// The given `level` should be between 1 and 13, otherwise `None` is returned.
+    ///
+    /// The default compression level is 3.
+    pub const fn new(level: u8) -> Option<Self> {
+        if !matches!(level, 1..=13) {
+            return None;
+        }
+
+        Some(Self(level))
+    }
+}
+
+impl Default for CompressLevel {
+    fn default() -> Self {
+        Self(3)
+    }
+}

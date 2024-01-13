@@ -5,9 +5,10 @@ extern crate libfuzzer_sys;
 use std::{ffi::c_void, mem::MaybeUninit, ptr::null_mut};
 
 use libfuzzer_sys::fuzz_target;
+use lzo1x::CompressLevel;
 
 fuzz_target!(|data: &[u8]| {
-    let mut compressed = lzo1x::compress(data, 3).unwrap();
+    let mut compressed = lzo1x::compress(data, CompressLevel::new(3).unwrap());
 
     assert!(compressed == lzo_sys_compress_1(&data));
 

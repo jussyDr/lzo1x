@@ -7,7 +7,7 @@ use std::{ffi::c_void, mem::MaybeUninit};
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {
-    let compressed = lzo1x::compress(data, 3).unwrap();
+    let compressed = lzo1x::compress(data, CompressLevel::new(3).unwrap());
 
     assert!(compressed == lzo_sys_compress_1(&data));
 
