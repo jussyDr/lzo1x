@@ -1,5 +1,4 @@
 use alloc::{vec, vec::Vec};
-use cfg_if::cfg_if;
 
 use crate::config::{
     M2_MAX_LEN, M2_MAX_OFFSET, M3_MARKER, M3_MAX_LEN, M3_MAX_OFFSET, M4_MARKER, M4_MAX_LEN,
@@ -69,7 +68,8 @@ pub fn compress_1(src: &[u8], d_bits: u32) -> Vec<u8> {
                 let t = src_pos - ii;
 
                 match t {
-                    0..=3 => {
+                    0 => {}
+                    1..=3 => {
                         dst[dst_pos - 2] |= t as u8;
                     }
                     4..=18 => {
@@ -95,7 +95,32 @@ pub fn compress_1(src: &[u8], d_bits: u32) -> Vec<u8> {
                 dst[dst_pos..dst_pos + t].copy_from_slice(&src[ii..ii + t]);
                 dst_pos += t;
 
-                let mut match_len = find_match_len(src, src_pos, src_pos_end, match_pos);
+                let mut match_len = 4;
+
+                loop {
+                    let v = get_u64_ne(src, src_pos + match_len)
+                        ^ get_u64_ne(src, match_pos + match_len);
+
+                    if v != 0 {
+                        #[cfg(target_endian = "little")]
+                        {
+                            match_len += v.trailing_zeros() as usize / 8;
+                        }
+
+                        #[cfg(target_endian = "big")]
+                        {
+                            match_len += v.leading_zeros() as usize / 8;
+                        }
+
+                        break;
+                    }
+
+                    match_len += 8;
+
+                    if src_pos + match_len >= src_pos_end {
+                        break;
+                    }
+                }
 
                 let mut match_off = src_pos - match_pos;
                 src_pos += match_len;
@@ -215,100 +240,10 @@ pub fn compress_1(src: &[u8], d_bits: u32) -> Vec<u8> {
     dst
 }
 
-cfg_if! {
-    if #[cfg(target_pointer_width = "64")] {
-        fn find_match_len(src: &[u8], src_pos: usize, src_pos_end: usize, match_pos: usize) -> usize {
-            let mut match_len = 4;
-
-            loop {
-                let v = get_u64_ne(src, src_pos + match_len) ^ get_u64_ne(src, match_pos + match_len);
-
-                if v != 0 {
-                    cfg_if! {
-                        if #[cfg(target_endian = "little")] {
-                            match_len += v.trailing_zeros() as usize / 8;
-                        } else if #[cfg(target_endian = "big")] {
-                            match_len += v.leading_zeros() as usize / 8;
-                        }
-                    }
-
-                    break;
-                }
-
-                match_len += 8;
-
-                if src_pos + match_len >= src_pos_end {
-                    break;
-                }
-            }
-
-            match_len
-        }
-    } else if #[cfg(target_pointer_width = "32")] {
-        fn find_match_len(src: &[u8], src_pos: usize, src_pos_end: usize, match_pos: usize) -> usize {
-            let mut match_len = 4;
-
-            loop {
-                for _ in 0..2 {
-                    let v = get_u32_ne(src, src_pos + match_len) ^ get_u32_ne(src, match_pos + match_len);
-
-                    if v != 0 {
-                        cfg_if! {
-                            if #[cfg(target_endian = "little")] {
-                                match_len += v.trailing_zeros() as usize / 8;
-                            } else if #[cfg(target_endian = "big")] {
-                                match_len += v.leading_zeros() as usize / 8;
-                            }
-                        }
-
-                        break;
-                    }
-
-                    match_len += 4;
-                }
-
-                if src_pos + match_len >= src_pos_end {
-                    break;
-                }
-            }
-
-            match_len
-        }
-    } else {
-        fn find_match_len(src: &[u8], src_pos: usize, src_pos_end: usize, match_pos: usize) -> usize {
-            let mut match_len = 4;
-
-            'main_loop: loop {
-                for _ in 0..8 {
-                    if src[src_pos + match_len] != src[match_pos + match_len] {
-                        break 'main_loop;
-                    }
-
-                    match_len += 1;
-                }
-
-                if src_pos + match_len >= src_pos_end {
-                    break;
-                }
-            }
-
-            match_len
-        }
-    }
-}
-
 fn get_u32_le(src: &[u8], src_pos: usize) -> u32 {
     u32::from_le_bytes(src[src_pos..src_pos + 4].try_into().unwrap())
 }
 
-cfg_if! {
-    if #[cfg(target_pointer_width = "64")] {
-        fn get_u64_ne(src: &[u8], src_pos: usize) -> u64 {
-            u64::from_ne_bytes(src[src_pos..src_pos + 8].try_into().unwrap())
-        }
-    } else if #[cfg(target_pointer_width = "32")] {
-        fn get_u32_ne(src: &[u8], src_pos: usize) -> u32 {
-            u32::from_ne_bytes(src[src_pos..src_pos + 4].try_into().unwrap())
-        }
-    }
+fn get_u64_ne(src: &[u8], src_pos: usize) -> u64 {
+    u64::from_ne_bytes(src[src_pos..src_pos + 8].try_into().unwrap())
 }
