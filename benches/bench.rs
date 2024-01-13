@@ -34,7 +34,7 @@ fn decompress(b: &mut Bencher) {
     let mut decompressed = vec![0; data.len()];
 
     b.iter(|| {
-        lzo1x::decompress(&compressed, &mut decompressed);
+        lzo1x::decompress(&compressed, &mut decompressed).unwrap();
     })
 }
 
@@ -116,7 +116,7 @@ fn lzo_sys_decompress(src: &[u8], dst: &mut [u8]) {
     unsafe {
         let mut dst_len = dst.len();
 
-        lzo_sys::lzo1x::lzo1x_decompress(
+        lzo_sys::lzo1x::lzo1x_decompress_safe(
             src.as_ptr(),
             src.len(),
             dst.as_mut_ptr(),

@@ -12,7 +12,7 @@ fuzz_target!(|data: &[u8]| {
     assert!(compressed == lzo_sys_compress_1(&data));
 
     let mut decompressed = vec![0; data.len()];
-    lzo1x::decompress(&compressed, &mut decompressed);
+    lzo1x::decompress(&compressed, &mut decompressed).unwrap();
 
     assert!(decompressed == data);
 });

@@ -158,7 +158,7 @@ fn roundtrip_1(data: &[u8]) {
     assert!(compressed == lzo_sys_compress_1(data));
 
     let mut decompressed = vec![0; data.len()];
-    lzo1x::decompress(&compressed, &mut decompressed);
+    lzo1x::decompress(&compressed, &mut decompressed).unwrap();
 
     assert!(decompressed == data);
 }
@@ -173,7 +173,7 @@ fn roundtrip_1_optimize(data: &[u8]) {
     assert!(compressed == lzo_sys_optimize(&compressed, data.len()));
 
     let mut decompressed = vec![0; data.len()];
-    lzo1x::decompress(&compressed, &mut decompressed);
+    lzo1x::decompress(&compressed, &mut decompressed).unwrap();
 
     assert!(decompressed == data);
 }
@@ -184,7 +184,7 @@ fn roundtrip_999(data: &[u8]) {
     assert!(compressed == lzo_sys_compress_999(data));
 
     let mut decompressed = vec![0; data.len()];
-    lzo1x::decompress(&compressed, &mut decompressed);
+    lzo1x::decompress(&compressed, &mut decompressed).unwrap();
 
     assert!(decompressed == data);
 }

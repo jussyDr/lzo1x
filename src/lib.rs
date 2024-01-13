@@ -15,7 +15,7 @@
 //! assert_eq!(compressed.len(), 34);
 //!
 //! let mut decompressed = vec![0; data.len()];
-//! lzo1x::decompress(&compressed, &mut decompressed);
+//! lzo1x::decompress(&compressed, &mut decompressed).unwrap();
 //!
 //! assert_eq!(decompressed, data);
 //! ```
@@ -31,7 +31,7 @@
 //! lzo1x::optimize(&mut compressed, data.len());
 //!
 //! let mut decompressed = vec![0; data.len()];
-//! lzo1x::decompress(&compressed, &mut decompressed);
+//! lzo1x::decompress(&compressed, &mut decompressed).unwrap();
 //!
 //! assert_eq!(decompressed, data);
 //! ```
@@ -108,3 +108,7 @@ impl Default for CompressLevel {
         Self(3)
     }
 }
+
+/// Error while decompressing using LZO1X.
+#[derive(Debug)]
+pub struct DecompressError;
