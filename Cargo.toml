@@ -11,6 +11,9 @@ harness = false
 [profile.bench]
 debug = true
 
+[dependencies]
+cfg-if = "1.0.0"
+
 [dev-dependencies]
 lzo-sys = "0.3.1"
 zip = "0.6.6"
