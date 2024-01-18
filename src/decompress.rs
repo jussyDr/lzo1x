@@ -28,8 +28,6 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
     let mut dst_idx = 0;
 
     let mut t = 0;
-    let mut m_pos = 0;
-    let mut x = 0;
 
     let mut state: u8;
 
@@ -115,9 +113,9 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                 if t >= 16 {
                     state = 2;
                 } else {
-                    m_pos = dst_idx;
+                    let mut m_pos = dst_idx;
 
-                    x = 1 + 0x0800;
+                    let mut x = 1 + 0x0800;
                     x += t >> 2;
                     x += (src[src_idx] as usize) << 2;
                     src_idx += 1;
@@ -141,16 +139,15 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                     }
 
                     dst_idx += 3;
-                    m_pos += 3;
 
                     state = 4;
                 }
             }
             2 => {
                 if t >= 64 {
-                    m_pos = dst_idx;
+                    let mut m_pos = dst_idx;
 
-                    x = 1;
+                    let mut x = 1;
                     x += (t >> 2) & 7;
                     x += (src[src_idx] as usize) << 3;
 
@@ -180,7 +177,6 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                     }
 
                     dst_idx += t;
-                    m_pos += t;
 
                     state = 4;
                 } else if t >= 32 {
@@ -208,9 +204,9 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                         }
                     }
 
-                    m_pos = dst_idx;
+                    let mut m_pos = dst_idx;
 
-                    x = 1;
+                    let mut x = 1;
 
                     cfg_if! {
                         if #[cfg(target_endian = "little")] {
@@ -223,11 +219,35 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
 
                     src_idx += 2;
 
-                    state = 3;
-                } else if t >= 16 {
-                    m_pos = dst_idx;
+                    if m_pos < x {
+                        return Err(DecompressError);
+                    }
 
-                    x = (t & 8) << 11;
+                    m_pos -= x;
+
+                    if m_pos >= dst_idx {
+                        return Err(DecompressError);
+                    }
+
+                    t += 2;
+
+                    if dst_len - dst_idx < t {
+                        return Err(DecompressError);
+                    }
+
+                    assert!(m_pos < dst_idx); // helps eliminate bound checks in next loop
+
+                    for i in 0..t {
+                        dst[dst_idx + i] = dst[m_pos + i];
+                    }
+
+                    dst_idx += t;
+
+                    state = 4;
+                } else if t >= 16 {
+                    let mut m_pos = dst_idx;
+
+                    let mut x = (t & 8) << 11;
 
                     t &= 7;
 
@@ -262,11 +282,35 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
 
                     x += 0x4000;
 
-                    state = 3;
-                } else {
-                    m_pos = dst_idx;
+                    if m_pos < x {
+                        return Err(DecompressError);
+                    }
 
-                    x = 1;
+                    m_pos -= x;
+
+                    if m_pos >= dst_idx {
+                        return Err(DecompressError);
+                    }
+
+                    t += 2;
+
+                    if dst_len - dst_idx < t {
+                        return Err(DecompressError);
+                    }
+
+                    assert!(m_pos < dst_idx); // helps eliminate bound checks in next loop
+
+                    for i in 0..t {
+                        dst[dst_idx + i] = dst[m_pos + i];
+                    }
+
+                    dst_idx += t;
+
+                    state = 4;
+                } else {
+                    let mut m_pos = dst_idx;
+
+                    let mut x = 1;
                     x += t >> 2;
                     x += (src[src_idx] as usize) << 2;
                     src_idx += 1;
@@ -290,38 +334,9 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                     }
 
                     dst_idx += 2;
-                    m_pos += 2;
 
                     state = 4;
                 }
-            }
-            3 => {
-                if m_pos < x {
-                    return Err(DecompressError);
-                }
-
-                m_pos -= x;
-
-                if m_pos >= dst_idx {
-                    return Err(DecompressError);
-                }
-
-                t += 2;
-
-                if dst_len - dst_idx < t {
-                    return Err(DecompressError);
-                }
-
-                assert!(m_pos < dst_idx); // helps eliminate bound checks in next loop
-
-                for i in 0..t {
-                    dst[dst_idx + i] = dst[m_pos + i];
-                }
-
-                dst_idx += t;
-                m_pos += t;
-
-                state = 4;
             }
             4 => {
                 t = src[src_idx - 2] as usize & 3;
