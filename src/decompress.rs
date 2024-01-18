@@ -172,11 +172,76 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
 
                     assert!(m_pos < dst_idx); // helps eliminate bound checks in next loop
 
-                    for i in 0..t {
-                        dst[dst_idx + i] = dst[m_pos + i];
-                    }
+                    if dst_idx - m_pos >= 8 {
+                        while t >= 8 {
+                            unsafe {
+                                *(dst.as_mut_ptr().add(dst_idx) as *mut u64) =
+                                    *(dst.as_ptr().add(m_pos) as *const u64);
+                            }
 
-                    dst_idx += t;
+                            dst_idx += 8;
+                            m_pos += 8;
+                            t -= 8;
+                        }
+
+                        if t >= 4 {
+                            unsafe {
+                                *(dst.as_mut_ptr().add(dst_idx) as *mut u32) =
+                                    *(dst.as_ptr().add(m_pos) as *const u32);
+                            }
+
+                            dst_idx += 4;
+                            m_pos += 4;
+                            t -= 4;
+                        }
+
+                        if t > 0 {
+                            dst[dst_idx] = dst[m_pos];
+                            dst_idx += 1;
+
+                            if t > 1 {
+                                dst[dst_idx] = dst[m_pos + 1];
+                                dst_idx += 1;
+
+                                if t > 2 {
+                                    dst[dst_idx] = dst[m_pos + 2];
+                                    dst_idx += 1;
+                                }
+                            }
+                        }
+                    } else if dst_idx - m_pos >= 4 {
+                        while t >= 4 {
+                            unsafe {
+                                *(dst.as_mut_ptr().add(dst_idx) as *mut u32) =
+                                    *(dst.as_ptr().add(m_pos) as *const u32);
+                            }
+
+                            dst_idx += 4;
+                            m_pos += 4;
+                            t -= 4;
+                        }
+
+                        if t > 0 {
+                            dst[dst_idx] = dst[m_pos];
+                            dst_idx += 1;
+
+                            if t > 1 {
+                                dst[dst_idx] = dst[m_pos + 1];
+                                dst_idx += 1;
+
+                                if t > 2 {
+                                    dst[dst_idx] = dst[m_pos + 2];
+                                    dst_idx += 1;
+                                }
+                            }
+                        }
+                    } else {
+                        for i in 0..t {
+                            dst[dst_idx + i] = dst[m_pos + i];
+                        }
+
+                        dst_idx += t;
+                    }
 
                     state = 4;
                 } else if t >= 32 {
