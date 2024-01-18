@@ -40,7 +40,7 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
         src_idx += 1;
 
         if t < 4 {
-            state = 5;
+            state = 4;
         } else {
             if dst_len - dst_idx < t {
                 return Err(DecompressError);
@@ -140,7 +140,7 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
 
                     dst_idx += 3;
 
-                    state = 4;
+                    state = 3;
                 }
             }
             2 => {
@@ -243,7 +243,7 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                         dst_idx += t;
                     }
 
-                    state = 4;
+                    state = 3;
                 } else if t >= 32 {
                     t &= 31;
 
@@ -377,7 +377,7 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                         dst_idx += t;
                     }
 
-                    state = 4;
+                    state = 3;
                 } else if t >= 16 {
                     let mut m_pos = dst_idx;
 
@@ -509,7 +509,7 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                         dst_idx += t;
                     }
 
-                    state = 4;
+                    state = 3;
                 } else {
                     let mut m_pos = dst_idx;
 
@@ -538,19 +538,19 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
 
                     dst_idx += 2;
 
-                    state = 4;
+                    state = 3;
                 }
             }
-            4 => {
+            3 => {
                 t = src[src_idx - 2] as usize & 3;
 
                 if t == 0 {
                     state = 0;
                 } else {
-                    state = 5;
+                    state = 4;
                 }
             }
-            5 => {
+            4 => {
                 if dst_len - dst_idx < t {
                     return Err(DecompressError);
                 }
