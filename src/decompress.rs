@@ -304,6 +304,8 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                 state = 4;
             }
             4 => {
+                assert!(m_pos < dst_idx); // helps with bound checks
+
                 for i in 0..t + 2 {
                     dst[dst_idx + i] = dst[m_pos + i];
                 }
