@@ -53,7 +53,6 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
             dst[dst_idx..dst_idx + t].copy_from_slice(&src[src_idx..src_idx + t]);
             dst_idx += t;
             src_idx += t;
-            t = 0;
 
             state = 1;
         }
@@ -103,7 +102,6 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                     dst[dst_idx..dst_idx + t + 3].copy_from_slice(&src[src_idx..src_idx + t + 3]);
                     dst_idx += t + 3;
                     src_idx += t + 3;
-                    t = 0;
 
                     state = 1;
                 }
@@ -294,13 +292,14 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                 state = 4;
             }
             4 => {
-                for i in 0..t + 2 {
+                t += 2;
+
+                for i in 0..t {
                     dst[dst_idx + i] = dst[m_pos + i];
                 }
 
-                dst_idx += t + 2;
-                m_pos += t + 2;
-                t = 0;
+                dst_idx += t;
+                m_pos += t;
 
                 state = 5;
             }
