@@ -365,11 +365,15 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                                 }
                             }
                         }
-                    } else {
+                    } else if dst_idx - m_pos >= 2 {
                         for i in 0..t {
                             dst[dst_idx + i] = dst[m_pos + i];
                         }
 
+                        dst_idx += t;
+                    } else {
+                        let value = dst[m_pos];
+                        dst[dst_idx..dst_idx + t].fill(value);
                         dst_idx += t;
                     }
 
