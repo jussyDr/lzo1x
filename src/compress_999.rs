@@ -47,25 +47,10 @@ pub struct Compress<'a> {
     look: usize,
     m_len: usize,
     m_off: usize,
-    last_m_len: usize,
-    last_m_off: usize,
     bp: usize,
     pub src_idx: usize,
     pub src: &'a [u8],
-    textsize: usize,
-    lit_bytes: usize,
-    match_bytes: usize,
-    lazy: usize,
     r1_lit: usize,
-    r1_m_len: usize,
-    m1a_m: usize,
-    m1b_m: usize,
-    m2_m: usize,
-    m3_m: usize,
-    m4_m: usize,
-    lit1_r: usize,
-    lit2_r: usize,
-    lit3_r: usize,
 }
 
 fn compress_internal(src: &[u8], dst: &mut [u8], params: Params) -> usize {
@@ -102,25 +87,10 @@ fn compress_internal(src: &[u8], dst: &mut [u8], params: Params) -> usize {
         look: 0,
         m_len: 0,
         m_off: 0,
-        last_m_len: 0,
-        last_m_off: 0,
         bp: 0,
         src_idx: 0,
         src,
-        textsize: 0,
-        lit_bytes: 0,
-        match_bytes: 0,
-        lazy: 0,
         r1_lit: 0,
-        r1_m_len: 0,
-        m1a_m: 0,
-        m1b_m: 0,
-        m2_m: 0,
-        m3_m: 0,
-        m4_m: 0,
-        lit1_r: 0,
-        lit2_r: 0,
-        lit3_r: 0,
     };
 
     let mut dst_idx = 0;
@@ -224,10 +194,8 @@ fn compress_internal(src: &[u8], dst: &mut [u8], params: Params) -> usize {
             let lazy_match_min_gain = min_gain(ahead, lit, lit + ahead, l1, l2, l3);
 
             if c.m_len >= m_len + lazy_match_min_gain {
-                c.lazy += 1;
-
                 if l3 != 0 {
-                    dst_idx = code_run(c, dst, dst_idx, src, ii, lit, ahead);
+                    dst_idx = code_run(c, dst, dst_idx, src, ii, lit);
                     lit = 0;
                     dst_idx = code_match(c, dst, dst_idx, ahead, m_off);
                 } else {
@@ -241,7 +209,7 @@ fn compress_internal(src: &[u8], dst: &mut [u8], params: Params) -> usize {
         }
 
         if flag {
-            dst_idx = code_run(c, dst, dst_idx, src, ii, lit, m_len);
+            dst_idx = code_run(c, dst, dst_idx, src, ii, lit);
             lit = 0;
 
             dst_idx = code_match(c, dst, dst_idx, m_len, m_off);
@@ -251,7 +219,7 @@ fn compress_internal(src: &[u8], dst: &mut [u8], params: Params) -> usize {
     }
 
     if lit > 0 {
-        dst_idx = store_run(c, dst, dst_idx, src, ii, lit);
+        dst_idx = store_run(dst, dst_idx, src, ii, lit);
     }
 
     dst[dst_idx] = M4_MARKER as u8 | 1;
@@ -264,26 +232,15 @@ fn compress_internal(src: &[u8], dst: &mut [u8], params: Params) -> usize {
     dst_idx
 }
 
-fn store_run(
-    c: &mut Compress,
-    dst: &mut [u8],
-    mut dst_idx: usize,
-    src: &[u8],
-    mut ii: usize,
-    mut t: usize,
-) -> usize {
-    c.lit_bytes += t;
-
+fn store_run(dst: &mut [u8], mut dst_idx: usize, src: &[u8], mut ii: usize, mut t: usize) -> usize {
     if dst_idx == 0 && t <= 238 {
         dst[dst_idx] = (17 + t) as u8;
         dst_idx += 1;
     } else if t <= 3 {
         dst[dst_idx - 2] |= t as u8;
-        c.lit1_r += 1;
     } else if t <= 18 {
         dst[dst_idx] = (t - 3) as u8;
         dst_idx += 1;
-        c.lit2_r += 1;
     } else {
         let mut tt = t - 18;
 
@@ -298,7 +255,6 @@ fn store_run(
 
         dst[dst_idx] = tt as u8;
         dst_idx += 1;
-        c.lit3_r += 1;
     }
 
     if t == 0 {
@@ -323,11 +279,6 @@ fn code_match(
     mut m_len: usize,
     mut m_off: usize,
 ) -> usize {
-    let x_len = m_len;
-    let x_off = m_off;
-
-    c.match_bytes += m_len;
-
     if m_len == 2 {
         m_off -= 1;
 
@@ -335,23 +286,18 @@ fn code_match(
         dst_idx += 1;
         dst[dst_idx] = (m_off >> 2) as u8;
         dst_idx += 1;
-
-        c.m1a_m += 1;
     } else if m_len <= M2_MAX_LEN && m_off <= M2_MAX_OFFSET {
         m_off -= 1;
         dst[dst_idx] = (((m_len - 1) << 5) | ((m_off & 7) << 2)) as u8;
         dst_idx += 1;
         dst[dst_idx] = (m_off >> 3) as u8;
         dst_idx += 1;
-
-        c.m2_m += 1;
     } else if m_len == M2_MIN_LEN && m_off <= MX_MAX_OFFSET && c.r1_lit >= 4 {
         m_off -= 1 + M2_MAX_OFFSET;
         dst[dst_idx] = (M1_MARKER | ((m_off & 3) << 2)) as u8;
         dst_idx += 1;
         dst[dst_idx] = (m_off >> 2) as u8;
         dst_idx += 1;
-        c.m1b_m += 1;
     } else if m_off <= M3_MAX_OFFSET {
         m_off -= 1;
 
@@ -377,7 +323,6 @@ fn code_match(
         dst_idx += 1;
         dst[dst_idx] = (m_off >> 6) as u8;
         dst_idx += 1;
-        c.m3_m += 1;
     } else {
         m_off -= 0x4000;
         let k = (m_off & 0x4000) >> 11;
@@ -403,11 +348,7 @@ fn code_match(
         dst_idx += 1;
         dst[dst_idx] = (m_off >> 6) as u8;
         dst_idx += 1;
-        c.m4_m += 1;
     }
-
-    c.last_m_len = x_len;
-    c.last_m_off = x_off;
 
     dst_idx
 }
@@ -419,14 +360,11 @@ fn code_run(
     src: &[u8],
     ii: usize,
     lit: usize,
-    m_len: usize,
 ) -> usize {
     if lit > 0 {
-        dst_idx = store_run(c, dst, dst_idx, src, ii, lit);
-        c.r1_m_len = m_len;
+        dst_idx = store_run(dst, dst_idx, src, ii, lit);
         c.r1_lit = lit;
     } else {
-        c.r1_m_len = 0;
         c.r1_lit = 0;
     }
 
@@ -558,9 +496,6 @@ fn min_gain(ahead: usize, lit1: usize, lit2: usize, l1: usize, l2: usize, l3: us
 fn find_match(c: &mut Compress, s: &mut Swd, this_len: usize, skip: usize) {
     if skip > 0 {
         s.accept(c, this_len - skip);
-        c.textsize += this_len - skip + 1;
-    } else {
-        c.textsize += this_len - skip;
     }
 
     s.m_len = SWD_THRESHOLD;
