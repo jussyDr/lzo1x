@@ -259,6 +259,21 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                             m_pos += 4;
                             t -= 4;
                         }
+
+                        if t > 0 {
+                            dst[dst_idx] = dst[m_pos];
+                            dst_idx += 1;
+
+                            if t > 1 {
+                                dst[dst_idx] = dst[m_pos + 1];
+                                dst_idx += 1;
+
+                                if t > 2 {
+                                    dst[dst_idx] = dst[m_pos + 2];
+                                    dst_idx += 1;
+                                }
+                            }
+                        }
                     } else if dst_idx - m_pos >= 4 {
                         while t >= 4 {
                             unsafe {
@@ -270,13 +285,28 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                             m_pos += 4;
                             t -= 4;
                         }
-                    }
 
-                    for i in 0..t {
-                        dst[dst_idx + i] = dst[m_pos + i];
-                    }
+                        if t > 0 {
+                            dst[dst_idx] = dst[m_pos];
+                            dst_idx += 1;
 
-                    dst_idx += t;
+                            if t > 1 {
+                                dst[dst_idx] = dst[m_pos + 1];
+                                dst_idx += 1;
+
+                                if t > 2 {
+                                    dst[dst_idx] = dst[m_pos + 2];
+                                    dst_idx += 1;
+                                }
+                            }
+                        }
+                    } else {
+                        for i in 0..t {
+                            dst[dst_idx + i] = dst[m_pos + i];
+                        }
+
+                        dst_idx += t;
+                    }
 
                     state = 4;
                 } else if t >= 16 {
