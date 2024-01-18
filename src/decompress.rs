@@ -2,6 +2,14 @@ use cfg_if::cfg_if;
 
 use crate::DecompressError;
 
+enum State {
+    State0,
+    State1,
+    State2,
+    State3,
+    State4,
+}
+
 /// Decompress the given `src` into the given `dst`.
 ///
 /// #### Errors
@@ -29,7 +37,7 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
 
     let mut t = 0;
 
-    let mut state: u8;
+    let mut state: State;
 
     if src_len - src_idx < 1 {
         return Err(DecompressError);
@@ -40,7 +48,7 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
         src_idx += 1;
 
         if t < 4 {
-            state = 4;
+            state = State::State4;
         } else {
             if dst_len - dst_idx < t {
                 return Err(DecompressError);
@@ -54,15 +62,15 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
             dst_idx += t;
             src_idx += t;
 
-            state = 1;
+            state = State::State1;
         }
     } else {
-        state = 0;
+        state = State::State0;
     }
 
     loop {
         match state {
-            0 => {
+            State::State0 => {
                 if src_len - src_idx < 3 {
                     return Err(DecompressError);
                 }
@@ -71,7 +79,7 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                 src_idx += 1;
 
                 if t >= 16 {
-                    state = 2;
+                    state = State::State2;
                 } else {
                     if t == 0 {
                         while src[src_idx] == 0 {
@@ -103,15 +111,15 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                     dst_idx += t + 3;
                     src_idx += t + 3;
 
-                    state = 1;
+                    state = State::State1;
                 }
             }
-            1 => {
+            State::State1 => {
                 t = src[src_idx] as usize;
                 src_idx += 1;
 
                 if t >= 16 {
-                    state = 2;
+                    state = State::State2;
                 } else {
                     let mut m_pos = dst_idx;
 
@@ -140,10 +148,10 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
 
                     dst_idx += 3;
 
-                    state = 3;
+                    state = State::State3;
                 }
             }
-            2 => {
+            State::State2 => {
                 if t >= 64 {
                     let mut m_pos = dst_idx;
 
@@ -243,7 +251,7 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                         dst_idx += t;
                     }
 
-                    state = 3;
+                    state = State::State3;
                 } else if t >= 32 {
                     t &= 31;
 
@@ -377,7 +385,7 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                         dst_idx += t;
                     }
 
-                    state = 3;
+                    state = State::State3;
                 } else if t >= 16 {
                     let mut m_pos = dst_idx;
 
@@ -509,7 +517,7 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                         dst_idx += t;
                     }
 
-                    state = 3;
+                    state = State::State3;
                 } else {
                     let mut m_pos = dst_idx;
 
@@ -538,19 +546,19 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
 
                     dst_idx += 2;
 
-                    state = 3;
+                    state = State::State3;
                 }
             }
-            3 => {
+            State::State3 => {
                 t = src[src_idx - 2] as usize & 3;
 
                 if t == 0 {
-                    state = 0;
+                    state = State::State0;
                 } else {
-                    state = 4;
+                    state = State::State4;
                 }
             }
-            4 => {
+            State::State4 => {
                 if dst_len - dst_idx < t {
                     return Err(DecompressError);
                 }
@@ -578,9 +586,8 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                 t = src[src_idx] as usize;
                 src_idx += 1;
 
-                state = 2;
+                state = State::State2;
             }
-            _ => unreachable!(),
         }
     }
 
