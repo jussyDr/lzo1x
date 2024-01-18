@@ -1,3 +1,5 @@
+use cfg_if::cfg_if;
+
 use crate::DecompressError;
 
 /// Decompress the given `src` into the given `dst`.
@@ -200,7 +202,15 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                     m_pos = dst_idx;
 
                     x = 1;
-                    x += (src[src_idx] as usize >> 2) + ((src[src_idx + 1] as usize) << 6);
+
+                    cfg_if! {
+                        if #[cfg(target_endian = "little")] {
+                            x += u16::from_le_bytes(src[src_idx..src_idx + 2].try_into().unwrap()) as usize
+                            >> 2;
+                        } else {
+                            x += (src[src_idx] as usize >> 2) + ((src[src_idx + 1] as usize) << 6);
+                        }
+                    }
 
                     src_idx += 2;
 
