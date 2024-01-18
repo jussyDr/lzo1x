@@ -281,18 +281,20 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                     return Err(DecompressError);
                 }
 
-                if dst_len - dst_idx < t + 2 {
+                t += 2;
+
+                if dst_len - dst_idx < t {
                     return Err(DecompressError);
                 }
 
                 assert!(m_pos < dst_idx); // helps eliminate bound checks in next loop
 
-                for i in 0..t + 2 {
+                for i in 0..t {
                     dst[dst_idx + i] = dst[m_pos + i];
                 }
 
-                dst_idx += t + 2;
-                m_pos += t + 2;
+                dst_idx += t;
+                m_pos += t;
 
                 state = 4;
             }
