@@ -42,7 +42,7 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
         src_idx += 1;
 
         if t < 4 {
-            state = 6;
+            state = 5;
         } else {
             if dst_len - dst_idx < t {
                 return Err(DecompressError);
@@ -145,7 +145,7 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                     dst_idx += 3;
                     m_pos += 3;
 
-                    state = 5;
+                    state = 4;
                 }
             }
             2 => {
@@ -159,21 +159,7 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                     src_idx += 1;
                     t = (t >> 5) - 1;
 
-                    if m_pos < x {
-                        return Err(DecompressError);
-                    }
-
-                    m_pos -= x;
-
-                    if m_pos >= dst_idx {
-                        return Err(DecompressError);
-                    }
-
-                    if dst_len - dst_idx < t + 2 {
-                        return Err(DecompressError);
-                    }
-
-                    state = 4;
+                    state = 3;
                 } else if t >= 32 {
                     t &= 31;
 
@@ -283,7 +269,7 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                     dst_idx += 2;
                     m_pos += 2;
 
-                    state = 5;
+                    state = 4;
                 }
             }
             3 => {
@@ -301,10 +287,7 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                     return Err(DecompressError);
                 }
 
-                state = 4;
-            }
-            4 => {
-                assert!(m_pos < dst_idx); // helps with bound checks
+                assert!(m_pos < dst_idx); // helps eliminate bound checks in next loop
 
                 for i in 0..t + 2 {
                     dst[dst_idx + i] = dst[m_pos + i];
@@ -314,18 +297,18 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                 m_pos += t + 2;
                 t = 0;
 
-                state = 5;
+                state = 4;
             }
-            5 => {
+            4 => {
                 t = src[src_idx - 2] as usize & 3;
 
                 if t == 0 {
                     state = 0;
                 } else {
-                    state = 6;
+                    state = 5;
                 }
             }
-            6 => {
+            5 => {
                 if dst_len - dst_idx < t {
                     return Err(DecompressError);
                 }
