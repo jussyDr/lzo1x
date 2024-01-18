@@ -259,6 +259,17 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                             m_pos += 4;
                             t -= 4;
                         }
+                    } else if dst_idx - m_pos >= 4 {
+                        while t >= 4 {
+                            unsafe {
+                                *(dst.as_mut_ptr().add(dst_idx) as *mut u32) =
+                                    *(dst.as_ptr().add(m_pos) as *const u32);
+                            }
+
+                            dst_idx += 4;
+                            m_pos += 4;
+                            t -= 4;
+                        }
                     }
 
                     for i in 0..t {
