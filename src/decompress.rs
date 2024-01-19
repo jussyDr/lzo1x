@@ -363,54 +363,54 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
 
 fn copy_match(
     dst: &mut [u8],
-    m_pos: usize,
+    match_pos: usize,
     dst_idx: usize,
-    t: usize,
+    len: usize,
 ) -> Result<(), DecompressError> {
-    if m_pos >= dst_idx {
+    if match_pos >= dst_idx {
         return Err(DecompressError);
     }
 
-    if dst.len() - dst_idx < t {
+    if dst.len() - dst_idx < len {
         return Err(DecompressError);
     }
 
-    let off = dst_idx - m_pos;
-    let dst = &mut dst[m_pos..m_pos + off + t];
+    let match_off = dst_idx - match_pos;
+    let dst = &mut dst[match_pos..match_pos + match_off + len];
 
-    if off >= t {
-        let (a, b) = dst.split_at_mut(off);
+    if match_off >= len {
+        let (a, b) = dst.split_at_mut(match_off);
         b.copy_from_slice(&a[..b.len()]);
-    } else if off == 1 {
+    } else if match_off == 1 {
         let value = dst[0];
-        dst[off..].fill(value);
-    } else if off <= 4 {
+        dst[match_off..].fill(value);
+    } else if match_off <= 4 {
         let value: [u8; 4] = dst[..4].try_into().unwrap();
-        let mut dst = &mut dst[off..];
+        let mut dst = &mut dst[match_off..];
 
         while dst.len() >= 4 {
             dst[..4].copy_from_slice(&value);
-            dst = &mut dst[off..];
+            dst = &mut dst[match_off..];
         }
 
         for i in 0..dst.len() {
-            dst[i] = value[i % off];
+            dst[i] = value[i % match_off];
         }
-    } else if off <= 8 {
+    } else if match_off <= 8 {
         let value: [u8; 8] = dst[..8].try_into().unwrap();
-        let mut dst = &mut dst[off..];
+        let mut dst = &mut dst[match_off..];
 
         while dst.len() >= 8 {
             dst[..8].copy_from_slice(&value);
-            dst = &mut dst[off..];
+            dst = &mut dst[match_off..];
         }
 
         for i in 0..dst.len() {
-            dst[i] = value[i % off];
+            dst[i] = value[i % match_off];
         }
     } else {
-        for i in 0..t {
-            dst[off + i] = dst[i];
+        for i in 0..len {
+            dst[match_off + i] = dst[i];
         }
     }
 
