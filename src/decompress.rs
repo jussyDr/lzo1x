@@ -378,7 +378,10 @@ fn copy_match(
     let off = dst_idx - m_pos;
     let dst = &mut dst[m_pos..m_pos + off + t];
 
-    if off == 1 {
+    if off >= t {
+        let (a, b) = dst.split_at_mut(off);
+        b.copy_from_slice(&a[..b.len()]);
+    } else if off == 1 {
         let value = dst[0];
         dst[off..].fill(value);
     } else if off <= 4 {
