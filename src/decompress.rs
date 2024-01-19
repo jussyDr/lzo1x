@@ -178,8 +178,6 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                         return Err(DecompressError);
                     }
 
-                    assert!(m_pos < dst_idx); // helps eliminate bound checks in next loop
-
                     if dst_idx - m_pos >= 8 {
                         while t >= 8 {
                             unsafe {
@@ -307,8 +305,6 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                     if dst_len - dst_idx < t {
                         return Err(DecompressError);
                     }
-
-                    assert!(m_pos < dst_idx); // helps eliminate bound checks in next loop
 
                     if dst_idx - m_pos >= 8 {
                         while t >= 8 {
@@ -439,8 +435,6 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                     if dst_len - dst_idx < t {
                         return Err(DecompressError);
                     }
-
-                    assert!(m_pos < dst_idx); // helps eliminate bound checks in next loop
 
                     if dst_idx - m_pos >= 8 {
                         while t >= 8 {
