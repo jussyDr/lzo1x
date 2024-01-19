@@ -375,8 +375,40 @@ fn copy_match(
         return Err(DecompressError);
     }
 
-    for i in 0..t {
-        dst[dst_idx + i] = dst[m_pos + i];
+    let off = dst_idx - m_pos;
+    let dst = &mut dst[m_pos..m_pos + off + t];
+
+    if off == 1 {
+        let value = dst[0];
+        dst[off..].fill(value);
+    } else if off <= 4 {
+        let value: [u8; 4] = dst[..4].try_into().unwrap();
+        let mut dst = &mut dst[off..];
+
+        while dst.len() >= 4 {
+            dst[..4].copy_from_slice(&value);
+            dst = &mut dst[off..];
+        }
+
+        for i in 0..dst.len() {
+            dst[i] = value[i % off];
+        }
+    } else if off <= 8 {
+        let value: [u8; 8] = dst[..8].try_into().unwrap();
+        let mut dst = &mut dst[off..];
+
+        while dst.len() >= 8 {
+            dst[..8].copy_from_slice(&value);
+            dst = &mut dst[off..];
+        }
+
+        for i in 0..dst.len() {
+            dst[i] = value[i % off];
+        }
+    } else {
+        for i in 0..t {
+            dst[off + i] = dst[i];
+        }
     }
 
     Ok(())
