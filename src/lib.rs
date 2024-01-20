@@ -1,5 +1,5 @@
 #![warn(missing_docs)]
-// #![forbid(unsafe_code)]
+#![forbid(unsafe_code)]
 #![no_std]
 
 //! Safe Rust port of the LZO1X compression algorithm.
