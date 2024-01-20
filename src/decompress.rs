@@ -2,6 +2,8 @@ use cfg_if::cfg_if;
 
 use crate::DecompressError;
 
+const MAX_255_COUNT: usize = (!0 / 255) - 2;
+
 enum State {
     State0,
     State1,
@@ -82,19 +84,23 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                     state = State::State2;
                 } else {
                     if t == 0 {
-                        while src[src_idx] == 0 {
-                            t += 255;
-                            src_idx += 1;
+                        let start = src_idx;
 
-                            if t > usize::MAX - 510 {
-                                return Err(DecompressError);
-                            }
+                        while src[src_idx] == 0 {
+                            src_idx += 1;
 
                             if src_len - src_idx < 1 {
                                 return Err(DecompressError);
                             }
                         }
 
+                        let offset = src_idx - start;
+
+                        if offset > MAX_255_COUNT {
+                            return Err(DecompressError);
+                        }
+
+                        t = offset * 255;
                         t += 15 + src[src_idx] as usize;
                         src_idx += 1;
                     }
@@ -202,19 +208,23 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                         t &= 31;
 
                         if t == 0 {
-                            while src[src_idx] == 0 {
-                                t += 255;
-                                src_idx += 1;
+                            let start = src_idx;
 
-                                if t > usize::MAX - 510 {
-                                    return Err(DecompressError);
-                                }
+                            while src[src_idx] == 0 {
+                                src_idx += 1;
 
                                 if src_len - src_idx < 1 {
                                     return Err(DecompressError);
                                 }
                             }
 
+                            let offset = src_idx - start;
+
+                            if offset > MAX_255_COUNT {
+                                return Err(DecompressError);
+                            }
+
+                            t = offset * 255;
                             t += 31 + src[src_idx] as usize;
                             src_idx += 1;
 
@@ -252,19 +262,23 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                         t &= 7;
 
                         if t == 0 {
-                            while src[src_idx] == 0 {
-                                t += 255;
-                                src_idx += 1;
+                            let start = src_idx;
 
-                                if t > usize::MAX - 510 {
-                                    return Err(DecompressError);
-                                }
+                            while src[src_idx] == 0 {
+                                src_idx += 1;
 
                                 if src_len - src_idx < 1 {
                                     return Err(DecompressError);
                                 }
                             }
 
+                            let offset = src_idx - start;
+
+                            if offset > MAX_255_COUNT {
+                                return Err(DecompressError);
+                            }
+
+                            t = offset * 255;
                             t += 7 + src[src_idx] as usize;
                             src_idx += 1;
 
