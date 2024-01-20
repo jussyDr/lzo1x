@@ -2,11 +2,10 @@
 
 extern crate test;
 
-use std::{ffi::c_void, fs::File, io::Read, mem::MaybeUninit, ptr::null_mut};
+use std::{ffi::c_void, mem::MaybeUninit, ptr::null_mut};
 
 use lzo1x::CompressLevel;
 use test::Bencher;
-use zip::ZipArchive;
 
 #[bench]
 fn compress_1(b: &mut Bencher) {
