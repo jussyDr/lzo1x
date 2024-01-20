@@ -1,4 +1,5 @@
 use alloc::{vec, vec::Vec};
+use cfg_if::cfg_if;
 
 use crate::config::{
     M2_MAX_LEN, M2_MAX_OFFSET, M3_MARKER, M3_MAX_LEN, M3_MAX_OFFSET, M4_MARKER, M4_MAX_LEN,
@@ -51,8 +52,7 @@ pub fn compress_1(src: &[u8], d_bits: u32) -> Vec<u8> {
                     }
 
                     let dv = get_u32_le(src, src_pos);
-                    let dindex = (((0x1824429du32.wrapping_mul(dv)) >> (32 - d_bits))
-                        & ((1 << d_bits) - 1)) as usize;
+                    let dindex = ((0x1824429du32.wrapping_mul(dv)) >> (32 - d_bits)) as usize;
                     match_pos = src_start + dict[dindex] as usize;
                     dict[dindex] = (src_pos - src_start) as u16;
 
@@ -102,14 +102,12 @@ pub fn compress_1(src: &[u8], d_bits: u32) -> Vec<u8> {
                         ^ get_u64_ne(src, match_pos + match_len);
 
                     if v != 0 {
-                        #[cfg(target_endian = "little")]
-                        {
-                            match_len += v.trailing_zeros() as usize / 8;
-                        }
-
-                        #[cfg(target_endian = "big")]
-                        {
-                            match_len += v.leading_zeros() as usize / 8;
+                        cfg_if! {
+                            if #[cfg(target_endian = "little")] {
+                                match_len += v.trailing_zeros() as usize / 8;
+                            } else if #[cfg(target_endian = "big")] {
+                                match_len += v.leading_zeros() as usize / 8;
+                            }
                         }
 
                         break;
