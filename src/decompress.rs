@@ -86,12 +86,16 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                     if t == 0 {
                         let start = src_idx;
 
-                        while src[src_idx] == 0 {
-                            src_idx += 1;
-
-                            if src_len - src_idx < 1 {
+                        loop {
+                            if src_idx >= src.len() {
                                 return Err(DecompressError);
                             }
+
+                            if src[src_idx] != 0 {
+                                break;
+                            }
+
+                            src_idx += 1;
                         }
 
                         let offset = src_idx - start;
@@ -210,12 +214,16 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                         if t == 0 {
                             let start = src_idx;
 
-                            while src[src_idx] == 0 {
-                                src_idx += 1;
-
-                                if src_len - src_idx < 1 {
+                            loop {
+                                if src_idx >= src.len() {
                                     return Err(DecompressError);
                                 }
+
+                                if src[src_idx] != 0 {
+                                    break;
+                                }
+
+                                src_idx += 1;
                             }
 
                             let offset = src_idx - start;
@@ -264,12 +272,16 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                         if t == 0 {
                             let start = src_idx;
 
-                            while src[src_idx] == 0 {
-                                src_idx += 1;
-
-                                if src_len - src_idx < 1 {
+                            loop {
+                                if src_idx >= src.len() {
                                     return Err(DecompressError);
                                 }
+
+                                if src[src_idx] != 0 {
+                                    break;
+                                }
+
+                                src_idx += 1;
                             }
 
                             let offset = src_idx - start;
