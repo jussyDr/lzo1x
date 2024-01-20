@@ -2,7 +2,7 @@
 
 extern crate test;
 
-use std::{ffi::c_void, mem::MaybeUninit, ptr::null_mut};
+use std::{ffi::c_void, io::Read, mem::MaybeUninit, ptr::null_mut};
 
 use lzo1x::CompressLevel;
 use test::Bencher;
@@ -71,7 +71,13 @@ fn decompress_sys(b: &mut Bencher) {
 }
 
 fn bench_data() -> Vec<u8> {
-    std::fs::read("benches/Mindor.body").unwrap()
+    let file = std::fs::File::open("corpora/calgary.zip").unwrap();
+    let mut zip = zip::ZipArchive::new(file).unwrap();
+    let mut file = zip.by_name("calgary/trans").unwrap();
+    let mut buf = vec![0; file.size() as usize];
+    file.read_to_end(&mut buf).unwrap();
+
+    buf
 }
 
 fn lzo_sys_compress_1(src: &[u8]) -> Vec<u8> {
