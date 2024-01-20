@@ -410,19 +410,14 @@ fn copy_match(
         }
     } else {
         let mut dst = dst;
+        let (mut a, mut b) = dst.split_at_mut(match_off);
 
-        loop {
-            let (a, b) = dst.split_at_mut(match_off);
-
-            if b.len() < 8 {
-                break;
-            }
-
+        while b.len() >= 8 {
             b[..8].copy_from_slice(&a[..8]);
             dst = &mut dst[8..];
+            (a, b) = dst.split_at_mut(match_off);
         }
 
-        let (a, b) = dst.split_at_mut(match_off);
         b.copy_from_slice(&a[..b.len()]);
     }
 
