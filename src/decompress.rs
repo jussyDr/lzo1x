@@ -152,128 +152,7 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                 }
             }
             State::State2 => {
-                if t >= 64 {
-                    let mut m_pos = dst_idx;
-
-                    let mut x = 1;
-                    x += (t >> 2) & 7;
-                    x += (src[src_idx] as usize) << 3;
-
-                    src_idx += 1;
-                    t = (t >> 5) - 1;
-
-                    if m_pos < x {
-                        return Err(DecompressError);
-                    }
-
-                    m_pos -= x;
-                    t += 2;
-
-                    copy_match(dst, m_pos, dst_idx, t)?;
-                    dst_idx += t;
-
-                    state = State::State3;
-                } else if t >= 32 {
-                    t &= 31;
-
-                    if t == 0 {
-                        while src[src_idx] == 0 {
-                            t += 255;
-                            src_idx += 1;
-
-                            if t > usize::MAX - 510 {
-                                return Err(DecompressError);
-                            }
-
-                            if src_len - src_idx < 1 {
-                                return Err(DecompressError);
-                            }
-                        }
-
-                        t += 31 + src[src_idx] as usize;
-                        src_idx += 1;
-
-                        if src_len - src_idx < 2 {
-                            return Err(DecompressError);
-                        }
-                    }
-
-                    let mut m_pos = dst_idx;
-
-                    let mut x = 1;
-
-                    cfg_if! {
-                        if #[cfg(target_endian = "little")] {
-                            x += u16::from_le_bytes(src[src_idx..src_idx + 2].try_into().unwrap()) as usize
-                            >> 2;
-                        } else {
-                            x += (src[src_idx] as usize >> 2) + ((src[src_idx + 1] as usize) << 6);
-                        }
-                    }
-
-                    src_idx += 2;
-
-                    if m_pos < x {
-                        return Err(DecompressError);
-                    }
-
-                    m_pos -= x;
-                    t += 2;
-
-                    copy_match(dst, m_pos, dst_idx, t)?;
-                    dst_idx += t;
-
-                    state = State::State3;
-                } else if t >= 16 {
-                    let mut m_pos = dst_idx;
-
-                    let mut x = (t & 8) << 11;
-
-                    t &= 7;
-
-                    if t == 0 {
-                        while src[src_idx] == 0 {
-                            t += 255;
-                            src_idx += 1;
-
-                            if t > usize::MAX - 510 {
-                                return Err(DecompressError);
-                            }
-
-                            if src_len - src_idx < 1 {
-                                return Err(DecompressError);
-                            }
-                        }
-
-                        t += 7 + src[src_idx] as usize;
-                        src_idx += 1;
-
-                        if src_len - src_idx < 2 {
-                            return Err(DecompressError);
-                        }
-                    }
-
-                    x += (src[src_idx] as usize >> 2) + ((src[src_idx + 1] as usize) << 6);
-                    src_idx += 2;
-
-                    if x == 0 {
-                        break;
-                    }
-
-                    x += 0x4000;
-
-                    if m_pos < x {
-                        return Err(DecompressError);
-                    }
-
-                    m_pos -= x;
-                    t += 2;
-
-                    copy_match(dst, m_pos, dst_idx, t)?;
-                    dst_idx += t;
-
-                    state = State::State3;
-                } else {
+                if t < 16 {
                     let mut m_pos = dst_idx;
 
                     let mut x = 1;
@@ -300,9 +179,122 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                     }
 
                     dst_idx += 2;
+                } else {
+                    let mut m_pos;
 
-                    state = State::State3;
+                    if t >= 64 {
+                        m_pos = dst_idx;
+
+                        let mut x = 1;
+                        x += (t >> 2) & 7;
+                        x += (src[src_idx] as usize) << 3;
+
+                        src_idx += 1;
+                        t = (t >> 5) - 1;
+
+                        if m_pos < x {
+                            return Err(DecompressError);
+                        }
+
+                        m_pos -= x;
+                        t += 2;
+                    } else if t >= 32 {
+                        t &= 31;
+
+                        if t == 0 {
+                            while src[src_idx] == 0 {
+                                t += 255;
+                                src_idx += 1;
+
+                                if t > usize::MAX - 510 {
+                                    return Err(DecompressError);
+                                }
+
+                                if src_len - src_idx < 1 {
+                                    return Err(DecompressError);
+                                }
+                            }
+
+                            t += 31 + src[src_idx] as usize;
+                            src_idx += 1;
+
+                            if src_len - src_idx < 2 {
+                                return Err(DecompressError);
+                            }
+                        }
+
+                        m_pos = dst_idx;
+
+                        let mut x = 1;
+
+                        cfg_if! {
+                            if #[cfg(target_endian = "little")] {
+                                x += u16::from_le_bytes(src[src_idx..src_idx + 2].try_into().unwrap()) as usize
+                                >> 2;
+                            } else {
+                                x += (src[src_idx] as usize >> 2) + ((src[src_idx + 1] as usize) << 6);
+                            }
+                        }
+
+                        src_idx += 2;
+
+                        if m_pos < x {
+                            return Err(DecompressError);
+                        }
+
+                        m_pos -= x;
+                        t += 2;
+                    } else {
+                        m_pos = dst_idx;
+
+                        let mut x = (t & 8) << 11;
+
+                        t &= 7;
+
+                        if t == 0 {
+                            while src[src_idx] == 0 {
+                                t += 255;
+                                src_idx += 1;
+
+                                if t > usize::MAX - 510 {
+                                    return Err(DecompressError);
+                                }
+
+                                if src_len - src_idx < 1 {
+                                    return Err(DecompressError);
+                                }
+                            }
+
+                            t += 7 + src[src_idx] as usize;
+                            src_idx += 1;
+
+                            if src_len - src_idx < 2 {
+                                return Err(DecompressError);
+                            }
+                        }
+
+                        x += (src[src_idx] as usize >> 2) + ((src[src_idx + 1] as usize) << 6);
+                        src_idx += 2;
+
+                        if x == 0 {
+                            break;
+                        }
+
+                        x += 0x4000;
+
+                        if m_pos < x {
+                            return Err(DecompressError);
+                        }
+
+                        m_pos -= x;
+                        t += 2;
+                    }
+
+                    copy_match(dst, m_pos, dst_idx, t)?;
+                    dst_idx += t;
                 }
+
+                state = State::State3;
             }
             State::State3 => {
                 t = src[src_idx - 2] as usize & 3;
