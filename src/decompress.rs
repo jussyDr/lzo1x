@@ -385,28 +385,28 @@ fn copy_match(
         let value = dst[0];
         dst[match_off..].fill(value);
     } else if match_off <= 4 {
-        let value: [u8; 4] = dst[..4].try_into().unwrap();
+        let value = u32::from_ne_bytes(dst[..4].try_into().unwrap());
         let mut dst = &mut dst[match_off..];
 
         while dst.len() >= 4 {
-            dst[..4].copy_from_slice(&value);
+            dst[..4].copy_from_slice(&value.to_ne_bytes());
             dst = &mut dst[match_off..];
         }
 
-        for i in 0..dst.len() {
-            dst[i] = value[i % match_off];
+        for (i, x) in dst.iter_mut().enumerate() {
+            *x = value.to_ne_bytes()[i % match_off];
         }
     } else if match_off <= 8 {
-        let value: [u8; 8] = dst[..8].try_into().unwrap();
+        let value = u64::from_ne_bytes(dst[..8].try_into().unwrap());
         let mut dst = &mut dst[match_off..];
 
         while dst.len() >= 8 {
-            dst[..8].copy_from_slice(&value);
+            dst[..8].copy_from_slice(&value.to_ne_bytes());
             dst = &mut dst[match_off..];
         }
 
-        for i in 0..dst.len() {
-            dst[i] = value[i % match_off];
+        for (i, x) in dst.iter_mut().enumerate() {
+            *x = value.to_ne_bytes()[i % match_off];
         }
     } else {
         let mut dst = dst;
