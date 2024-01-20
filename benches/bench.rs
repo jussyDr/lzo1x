@@ -72,14 +72,7 @@ fn decompress_sys(b: &mut Bencher) {
 }
 
 fn bench_data() -> Vec<u8> {
-    let zip_file = File::open("corpora/calgary.zip").unwrap();
-    let mut zip_archive = ZipArchive::new(zip_file).unwrap();
-    let mut file = zip_archive.by_name("calgary/bib").unwrap();
-
-    let mut data = vec![0; file.size() as usize];
-    file.read_to_end(&mut data).unwrap();
-
-    data
+    std::fs::read("benches/Mindor.body").unwrap()
 }
 
 fn lzo_sys_compress_1(src: &[u8]) -> Vec<u8> {
