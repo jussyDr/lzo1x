@@ -290,7 +290,58 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                         t += 2;
                     }
 
-                    copy_match(dst, m_pos, dst_idx, t)?;
+                    if m_pos >= dst_idx {
+                        return Err(DecompressError);
+                    }
+
+                    if dst.len() - dst_idx < t {
+                        return Err(DecompressError);
+                    }
+
+                    let match_off = dst_idx - m_pos;
+                    let dst = &mut dst[m_pos..m_pos + match_off + t];
+
+                    if match_off >= t {
+                        let (a, b) = dst.split_at_mut(match_off);
+                        b.copy_from_slice(&a[..b.len()]);
+                    } else if match_off == 1 {
+                        let value = dst[0];
+                        dst[match_off..].fill(value);
+                    } else if match_off <= 4 {
+                        let value = u32::from_ne_bytes(dst[..4].try_into().unwrap());
+                        let mut dst = &mut dst[match_off..];
+
+                        while dst.len() >= 4 {
+                            dst[..4].copy_from_slice(&value.to_ne_bytes());
+                            dst = &mut dst[match_off..];
+                        }
+
+                        for (i, x) in dst.iter_mut().enumerate() {
+                            *x = value.to_ne_bytes()[i % match_off];
+                        }
+                    } else if match_off <= 8 {
+                        let value = u64::from_ne_bytes(dst[..8].try_into().unwrap());
+                        let mut dst = &mut dst[match_off..];
+
+                        while dst.len() >= 8 {
+                            dst[..8].copy_from_slice(&value.to_ne_bytes());
+                            dst = &mut dst[match_off..];
+                        }
+
+                        for (i, x) in dst.iter_mut().enumerate() {
+                            *x = value.to_ne_bytes()[i % match_off];
+                        }
+                    } else {
+                        let mut dst = dst;
+
+                        while dst.len() - 8 >= match_off {
+                            dst.copy_within(..8, match_off);
+                            dst = &mut dst[8..];
+                        }
+
+                        dst.copy_within(..dst.len() - match_off, match_off);
+                    }
+
                     dst_idx += t;
                 }
 
@@ -348,67 +399,6 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
 
     if dst_idx < dst_len {
         return Err(DecompressError);
-    }
-
-    Ok(())
-}
-
-fn copy_match(
-    dst: &mut [u8],
-    match_pos: usize,
-    dst_idx: usize,
-    len: usize,
-) -> Result<(), DecompressError> {
-    if match_pos >= dst_idx {
-        return Err(DecompressError);
-    }
-
-    if dst.len() - dst_idx < len {
-        return Err(DecompressError);
-    }
-
-    let match_off = dst_idx - match_pos;
-    let dst = &mut dst[match_pos..match_pos + match_off + len];
-
-    if match_off >= len {
-        let (a, b) = dst.split_at_mut(match_off);
-        b.copy_from_slice(&a[..b.len()]);
-    } else if match_off == 1 {
-        let value = dst[0];
-        dst[match_off..].fill(value);
-    } else if match_off <= 4 {
-        let value = u32::from_ne_bytes(dst[..4].try_into().unwrap());
-        let mut dst = &mut dst[match_off..];
-
-        while dst.len() >= 4 {
-            dst[..4].copy_from_slice(&value.to_ne_bytes());
-            dst = &mut dst[match_off..];
-        }
-
-        for (i, x) in dst.iter_mut().enumerate() {
-            *x = value.to_ne_bytes()[i % match_off];
-        }
-    } else if match_off <= 8 {
-        let value = u64::from_ne_bytes(dst[..8].try_into().unwrap());
-        let mut dst = &mut dst[match_off..];
-
-        while dst.len() >= 8 {
-            dst[..8].copy_from_slice(&value.to_ne_bytes());
-            dst = &mut dst[match_off..];
-        }
-
-        for (i, x) in dst.iter_mut().enumerate() {
-            *x = value.to_ne_bytes()[i % match_off];
-        }
-    } else {
-        let mut dst = dst;
-
-        while dst.len() - 8 >= match_off {
-            dst.copy_within(..8, match_off);
-            dst = &mut dst[8..];
-        }
-
-        dst.copy_within(..dst.len() - match_off, match_off);
     }
 
     Ok(())
