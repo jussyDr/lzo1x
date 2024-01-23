@@ -73,7 +73,7 @@ fn decompress_sys(b: &mut Bencher) {
 fn bench_data() -> Vec<u8> {
     let file = std::fs::File::open("corpora/calgary.zip").unwrap();
     let mut zip = zip::ZipArchive::new(file).unwrap();
-    let mut file = zip.by_name("calgary/trans").unwrap();
+    let mut file = zip.by_name("calgary/obj1").unwrap();
     let mut buf = vec![0; file.size() as usize];
     file.read_to_end(&mut buf).unwrap();
 

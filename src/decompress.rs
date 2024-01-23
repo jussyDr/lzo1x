@@ -255,7 +255,7 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                     let mut match_pos = dst_pos - distance;
 
                     for _ in 0..length {
-                        dst[dst_pos] = dst[match_pos];
+                        unsafe { *dst.get_unchecked_mut(dst_pos) = *dst.get_unchecked(match_pos) };
                         match_pos += 1;
                         dst_pos += 1;
                     }
@@ -282,7 +282,7 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                     let mut match_pos = dst_pos - distance;
 
                     for _ in 0..length {
-                        unsafe { *dst.get_unchecked_mut(dst_pos) = *dst.get_unchecked(match_pos) };
+                        dst[dst_pos] = dst[match_pos];
                         match_pos += 1;
                         dst_pos += 1;
                     }
