@@ -274,13 +274,12 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                         + ((src[src_pos + 1] as usize) << 6)
                         + ((src[src_pos] >> 2) as usize)
                         + 16384;
+                    let state = src[src_pos] & 0b00000011;
+                    src_pos += 2;
 
                     if distance == 16384 {
                         break;
                     }
-
-                    let state = src[src_pos] & 0b00000011;
-                    src_pos += 2;
 
                     if distance > dst_pos {
                         return Err(DecompressError);
@@ -335,13 +334,12 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                         + ((src[src_pos + 1] as usize) << 6)
                         + ((src[src_pos] >> 2) as usize)
                         + 16384;
+                    let state = src[src_pos] & 0b00000011;
+                    src_pos += 2;
 
                     if distance == 16384 {
                         break;
                     }
-
-                    let state = src[src_pos] & 0b00000011;
-                    src_pos += 2;
 
                     if distance > dst_pos {
                         return Err(DecompressError);
@@ -667,6 +665,14 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                 }
             }
         }
+    }
+
+    if src_pos != src.len() {
+        return Err(DecompressError);
+    }
+
+    if dst_pos != dst.len() {
+        return Err(DecompressError);
     }
 
     Ok(())
