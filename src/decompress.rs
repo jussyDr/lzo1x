@@ -586,15 +586,22 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                 let mut match_pos = dst_pos - distance;
 
                 if is_length_4 {
+                    let mut value =
+                        u32::from_ne_bytes(dst[match_pos..match_pos + 4].try_into().unwrap());
+
+                    match distance {
+                        1 => value = (value & 0x000000ff).wrapping_mul(0x01010101),
+                        2 => value = (value & 0x0000ffff).wrapping_mul(0x00010001),
+                        3 => value = (value & 0x00ffffff).wrapping_mul(0x01000001),
+                        _ => {}
+                    }
+
                     if dst_pos + 4 > dst.len() {
                         return Err(DecompressError);
                     }
 
-                    for _ in 0..4 {
-                        dst[dst_pos] = dst[match_pos];
-                        match_pos += 1;
-                        dst_pos += 1;
-                    }
+                    dst[dst_pos..dst_pos + 4].copy_from_slice(&value.to_ne_bytes());
+                    dst_pos += 4;
                 } else {
                     if dst_pos + 3 > dst.len() {
                         return Err(DecompressError);
