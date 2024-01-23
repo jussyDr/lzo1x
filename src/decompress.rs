@@ -417,36 +417,42 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                         return Err(DecompressError);
                     }
 
-                    match distance {
-                        1 => {
-                            let value = dst[match_pos];
-                            dst[dst_pos..dst_pos + length].fill(value);
-                            dst_pos += length;
-                        }
-                        5..=8 => {
-                            let value: [u8; 8] = dst[match_pos..match_pos + 8].try_into().unwrap();
-                            let end = dst_pos + length;
-                            let mut match_dst = &mut dst[dst_pos..end];
-
-                            while match_dst.len() >= 8 {
-                                match_dst[..8].copy_from_slice(&value);
-                                match_pos += distance;
-                                match_dst = &mut match_dst[distance..];
+                    if length <= distance {
+                        dst.copy_within(match_pos..match_pos + length, dst_pos);
+                        dst_pos += length;
+                    } else {
+                        match distance {
+                            1 => {
+                                let value = dst[match_pos];
+                                dst[dst_pos..dst_pos + length].fill(value);
+                                dst_pos += length;
                             }
+                            5..=8 => {
+                                let value: [u8; 8] =
+                                    dst[match_pos..match_pos + 8].try_into().unwrap();
+                                let end = dst_pos + length;
+                                let mut match_dst = &mut dst[dst_pos..end];
 
-                            dst_pos += length - match_dst.len();
+                                while match_dst.len() >= 8 {
+                                    match_dst[..8].copy_from_slice(&value);
+                                    match_pos += distance;
+                                    match_dst = &mut match_dst[distance..];
+                                }
 
-                            while dst_pos < end {
-                                dst[dst_pos] = dst[match_pos];
-                                match_pos += 1;
-                                dst_pos += 1;
+                                dst_pos += length - match_dst.len();
+
+                                while dst_pos < end {
+                                    dst[dst_pos] = dst[match_pos];
+                                    match_pos += 1;
+                                    dst_pos += 1;
+                                }
                             }
-                        }
-                        _ => {
-                            for _ in 0..length {
-                                dst[dst_pos] = dst[match_pos];
-                                match_pos += 1;
-                                dst_pos += 1;
+                            _ => {
+                                for _ in 0..length {
+                                    dst[dst_pos] = dst[match_pos];
+                                    match_pos += 1;
+                                    dst_pos += 1;
+                                }
                             }
                         }
                     }
