@@ -256,12 +256,15 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                         5..=8 => {
                             let value: [u8; 8] = dst[match_pos..match_pos + 8].try_into().unwrap();
                             let end = dst_pos + length;
+                            let mut match_dst = &mut dst[dst_pos..end];
 
-                            while dst_pos + 8 <= end {
-                                dst[dst_pos..dst_pos + 8].copy_from_slice(&value);
+                            while match_dst.len() >= 8 {
+                                match_dst[..8].copy_from_slice(&value);
                                 match_pos += distance;
-                                dst_pos += distance;
+                                match_dst = &mut match_dst[distance..];
                             }
+
+                            dst_pos += length - match_dst.len();
 
                             while dst_pos < end {
                                 dst[dst_pos] = dst[match_pos];
