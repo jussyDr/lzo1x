@@ -80,11 +80,10 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                         let length = (count * 255) + (src[src_pos] as usize) + 18;
                         src_pos += 1;
 
-                        for _ in 0..length {
-                            dst[dst_pos] = src[src_pos];
-                            src_pos += 1;
-                            dst_pos += 1;
-                        }
+                        dst[dst_pos..dst_pos + length]
+                            .copy_from_slice(&src[src_pos..src_pos + length]);
+                        src_pos += length;
+                        dst_pos += length;
 
                         State::C
                     } else {
