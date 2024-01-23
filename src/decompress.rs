@@ -418,6 +418,11 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                     }
 
                     match distance {
+                        1 => {
+                            let value = dst[match_pos];
+                            dst[dst_pos..dst_pos + length].fill(value);
+                            dst_pos += length;
+                        }
                         5..=8 => {
                             let value: [u8; 8] = dst[match_pos..match_pos + 8].try_into().unwrap();
                             let end = dst_pos + length;
