@@ -522,7 +522,7 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                 }
             }
             64..=127 => {
-                let length = (((instruction & 0b00100000) >> 5) as usize) + 3;
+                let is_length_4 = instruction & 0b00100000 != 0;
 
                 if src_pos + 1 > src.len() {
                     return Err(DecompressError);
@@ -539,14 +539,26 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
 
                 let mut match_pos = dst_pos - distance;
 
-                if dst_pos + length > dst.len() {
-                    return Err(DecompressError);
-                }
+                if is_length_4 {
+                    if dst_pos + 4 > dst.len() {
+                        return Err(DecompressError);
+                    }
 
-                for _ in 0..length {
-                    dst[dst_pos] = dst[match_pos];
-                    match_pos += 1;
-                    dst_pos += 1;
+                    for _ in 0..4 {
+                        dst[dst_pos] = dst[match_pos];
+                        match_pos += 1;
+                        dst_pos += 1;
+                    }
+                } else {
+                    if dst_pos + 3 > dst.len() {
+                        return Err(DecompressError);
+                    }
+
+                    for _ in 0..3 {
+                        dst[dst_pos] = dst[match_pos];
+                        match_pos += 1;
+                        dst_pos += 1;
+                    }
                 }
 
                 let state = instruction & 0b00000011;
