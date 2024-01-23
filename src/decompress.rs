@@ -1,16 +1,10 @@
-use cfg_if::cfg_if;
-
 use crate::DecompressError;
-
-const MAX_255_COUNT: usize = (!0 / 255) - 2;
 
 #[derive(Debug)]
 enum State {
-    State0,
-    State1,
-    State2,
-    State3,
-    State4,
+    A,
+    B,
+    C,
 }
 
 /// Decompress the given `src` into the given `dst`.
@@ -32,408 +26,341 @@ enum State {
 /// assert_eq!(decompressed, data);
 /// ```
 pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
-    let src_len = src.len();
-    let dst_len = dst.len();
+    let mut src_pos = 0;
+    let mut dst_pos = 0;
 
-    let mut src_idx = 0;
-    let mut dst_idx = 0;
+    let instruction = src[src_pos];
 
-    let mut t = 0;
+    let mut state = match instruction {
+        0..=17 => State::A,
+        18..=20 => {
+            src_pos += 1;
 
-    let mut state: State;
+            let length = (instruction as usize) - 17;
 
-    if src_len - src_idx < 1 {
-        return Err(DecompressError);
-    }
-
-    if src[src_idx] > 17 {
-        t = src[src_idx] as usize - 17;
-        src_idx += 1;
-
-        if t < 4 {
-            state = State::State4;
-        } else {
-            if dst_len - dst_idx < t {
-                return Err(DecompressError);
+            for _ in 0..length {
+                dst[dst_pos] = src[src_pos];
+                src_pos += 1;
+                dst_pos += 1;
             }
 
-            if src_len - src_idx < t + 3 {
-                return Err(DecompressError);
-            }
-
-            dst[dst_idx..dst_idx + t].copy_from_slice(&src[src_idx..src_idx + t]);
-            dst_idx += t;
-            src_idx += t;
-
-            state = State::State1;
+            State::B
         }
-    } else {
-        state = State::State0;
-    }
+        21..=255 => {
+            src_pos += 1;
+
+            let length = (instruction as usize) - 17;
+
+            for _ in 0..length {
+                dst[dst_pos] = src[src_pos];
+                src_pos += 1;
+                dst_pos += 1;
+            }
+
+            State::C
+        }
+    };
 
     loop {
-        match state {
-            State::State0 => {
-                if src_len - src_idx < 3 {
-                    return Err(DecompressError);
-                }
+        let instruction = src[src_pos];
+        src_pos += 1;
 
-                t = src[src_idx] as usize;
-                src_idx += 1;
+        state = match instruction {
+            0..=15 => match state {
+                State::A => {
+                    if instruction == 0 {
+                        let start = src_pos;
 
-                if t >= 16 {
-                    state = State::State2;
-                } else {
-                    if t == 0 {
-                        let start = src_idx;
-
-                        loop {
-                            if src_idx >= src.len() {
-                                return Err(DecompressError);
-                            }
-
-                            if src[src_idx] != 0 {
-                                break;
-                            }
-
-                            src_idx += 1;
+                        while src[src_pos] == 0 {
+                            src_pos += 1;
                         }
 
-                        let offset = src_idx - start;
+                        let count = src_pos - start;
 
-                        if offset > MAX_255_COUNT {
-                            return Err(DecompressError);
+                        let length = (count * 255) + (src[src_pos] as usize) + 18;
+                        src_pos += 1;
+
+                        for _ in 0..length {
+                            dst[dst_pos] = src[src_pos];
+                            src_pos += 1;
+                            dst_pos += 1;
                         }
 
-                        t = offset * 255;
-                        t += 15 + src[src_idx] as usize;
-                        src_idx += 1;
-                    }
-
-                    if dst_len - dst_idx < t + 3 {
-                        return Err(DecompressError);
-                    }
-
-                    if src_len - src_idx < t + 6 {
-                        return Err(DecompressError);
-                    }
-
-                    dst[dst_idx..dst_idx + t + 3].copy_from_slice(&src[src_idx..src_idx + t + 3]);
-                    dst_idx += t + 3;
-                    src_idx += t + 3;
-
-                    state = State::State1;
-                }
-            }
-            State::State1 => {
-                t = src[src_idx] as usize;
-                src_idx += 1;
-
-                if t >= 16 {
-                    state = State::State2;
-                } else {
-                    let mut m_pos = dst_idx;
-
-                    let mut x = 1 + 0x0800;
-                    x += t >> 2;
-                    x += (src[src_idx] as usize) << 2;
-                    src_idx += 1;
-
-                    if m_pos < x {
-                        return Err(DecompressError);
-                    }
-
-                    m_pos -= x;
-
-                    if m_pos >= dst_idx {
-                        return Err(DecompressError);
-                    }
-
-                    if dst_len - dst_idx < 3 {
-                        return Err(DecompressError);
-                    }
-
-                    for i in 0..3 {
-                        dst[dst_idx + i] = dst[m_pos + i];
-                    }
-
-                    dst_idx += 3;
-
-                    state = State::State3;
-                }
-            }
-            State::State2 => {
-                if t < 16 {
-                    let mut m_pos = dst_idx;
-
-                    let mut x = 1;
-                    x += t >> 2;
-                    x += (src[src_idx] as usize) << 2;
-                    src_idx += 1;
-
-                    if m_pos < x {
-                        return Err(DecompressError);
-                    }
-
-                    m_pos -= x;
-
-                    if m_pos >= dst_idx {
-                        return Err(DecompressError);
-                    }
-
-                    if dst_len - dst_idx < 2 {
-                        return Err(DecompressError);
-                    }
-
-                    for i in 0..2 {
-                        dst[dst_idx + i] = dst[m_pos + i];
-                    }
-
-                    dst_idx += 2;
-                } else {
-                    let mut m_pos;
-
-                    if t >= 64 {
-                        m_pos = dst_idx;
-
-                        let mut x = 1;
-                        x += (t >> 2) & 7;
-                        x += (src[src_idx] as usize) << 3;
-
-                        src_idx += 1;
-                        t = (t >> 5) - 1;
-
-                        if m_pos < x {
-                            return Err(DecompressError);
-                        }
-
-                        m_pos -= x;
-                        t += 2;
-                    } else if t >= 32 {
-                        t &= 31;
-
-                        if t == 0 {
-                            let start = src_idx;
-
-                            loop {
-                                if src_idx >= src.len() {
-                                    return Err(DecompressError);
-                                }
-
-                                if src[src_idx] != 0 {
-                                    break;
-                                }
-
-                                src_idx += 1;
-                            }
-
-                            let offset = src_idx - start;
-
-                            if offset > MAX_255_COUNT {
-                                return Err(DecompressError);
-                            }
-
-                            t = offset * 255;
-                            t += 31 + src[src_idx] as usize;
-                            src_idx += 1;
-
-                            if src_len - src_idx < 2 {
-                                return Err(DecompressError);
-                            }
-                        }
-
-                        m_pos = dst_idx;
-
-                        let mut x = 1;
-
-                        cfg_if! {
-                            if #[cfg(target_endian = "little")] {
-                                x += u16::from_le_bytes(src[src_idx..src_idx + 2].try_into().unwrap()) as usize
-                                >> 2;
-                            } else {
-                                x += (src[src_idx] as usize >> 2) + ((src[src_idx + 1] as usize) << 6);
-                            }
-                        }
-
-                        src_idx += 2;
-
-                        if m_pos < x {
-                            return Err(DecompressError);
-                        }
-
-                        m_pos -= x;
-                        t += 2;
+                        State::C
                     } else {
-                        m_pos = dst_idx;
+                        let length = (instruction as usize) + 3;
 
-                        let mut x = (t & 8) << 11;
-
-                        t &= 7;
-
-                        if t == 0 {
-                            let start = src_idx;
-
-                            loop {
-                                if src_idx >= src.len() {
-                                    return Err(DecompressError);
-                                }
-
-                                if src[src_idx] != 0 {
-                                    break;
-                                }
-
-                                src_idx += 1;
-                            }
-
-                            let offset = src_idx - start;
-
-                            if offset > MAX_255_COUNT {
-                                return Err(DecompressError);
-                            }
-
-                            t = offset * 255;
-                            t += 7 + src[src_idx] as usize;
-                            src_idx += 1;
-
-                            if src_len - src_idx < 2 {
-                                return Err(DecompressError);
-                            }
+                        for _ in 0..length {
+                            dst[dst_pos] = src[src_pos];
+                            src_pos += 1;
+                            dst_pos += 1;
                         }
 
-                        cfg_if! {
-                            if #[cfg(target_endian = "little")] {
-                                x += u16::from_le_bytes(src[src_idx..src_idx + 2].try_into().unwrap()) as usize
-                                >> 2;
-                            } else {
-                                x += (src[src_idx] as usize >> 2) + ((src[src_idx + 1] as usize) << 6);
-                            }
-                        }
+                        State::C
+                    }
+                }
+                State::B => {
+                    let distance =
+                        ((src[src_pos] as usize) << 2) + ((instruction >> 2) as usize) + 1;
+                    src_pos += 1;
 
-                        src_idx += 2;
+                    let mut match_pos = dst_pos - distance;
 
-                        if x == 0 {
-                            break;
-                        }
-
-                        x += 0x4000;
-
-                        if m_pos < x {
-                            return Err(DecompressError);
-                        }
-
-                        m_pos -= x;
-                        t += 2;
+                    for _ in 0..2 {
+                        dst[dst_pos] = dst[match_pos];
+                        match_pos += 1;
+                        dst_pos += 1;
                     }
 
-                    if m_pos >= dst_idx {
-                        return Err(DecompressError);
-                    }
+                    let state = instruction & 0b00000011;
 
-                    if dst.len() - dst_idx < t {
-                        return Err(DecompressError);
-                    }
-
-                    let match_off = dst_idx - m_pos;
-                    let dst = &mut dst[m_pos..m_pos + match_off + t];
-
-                    if match_off >= t {
-                        let (a, b) = dst.split_at_mut(match_off);
-                        b.copy_from_slice(&a[..b.len()]);
-                    } else if match_off == 1 {
-                        let value = dst[0];
-                        dst[match_off..].fill(value);
-                    } else if match_off <= 4 {
-                        let value = u32::from_ne_bytes(dst[..4].try_into().unwrap());
-                        let mut dst = &mut dst[match_off..];
-
-                        while dst.len() >= 4 {
-                            dst[..4].copy_from_slice(&value.to_ne_bytes());
-                            dst = &mut dst[match_off..];
-                        }
-
-                        for (i, x) in dst.iter_mut().enumerate() {
-                            *x = value.to_ne_bytes()[i % match_off];
-                        }
-                    } else if match_off <= 8 {
-                        let value = u64::from_ne_bytes(dst[..8].try_into().unwrap());
-                        let mut dst = &mut dst[match_off..];
-
-                        while dst.len() >= 8 {
-                            dst[..8].copy_from_slice(&value.to_ne_bytes());
-                            dst = &mut dst[match_off..];
-                        }
-
-                        for (i, x) in dst.iter_mut().enumerate() {
-                            *x = value.to_ne_bytes()[i % match_off];
-                        }
+                    if state == 0 {
+                        State::A
                     } else {
-                        let mut dst = dst;
-
-                        while dst.len() - 8 >= match_off {
-                            dst.copy_within(..8, match_off);
-                            dst = &mut dst[8..];
+                        for _ in 0..state {
+                            dst[dst_pos] = src[src_pos];
+                            src_pos += 1;
+                            dst_pos += 1;
                         }
 
-                        dst.copy_within(..dst.len() - match_off, match_off);
+                        State::B
+                    }
+                }
+                State::C => {
+                    let distance =
+                        ((src[src_pos] as usize) << 2) + ((instruction >> 2) as usize) + 2049;
+                    src_pos += 1;
+
+                    let mut match_pos = dst_pos - distance;
+
+                    for _ in 0..3 {
+                        dst[dst_pos] = dst[match_pos];
+                        match_pos += 1;
+                        dst_pos += 1;
                     }
 
-                    dst_idx += t;
+                    let state = instruction & 0b00000011;
+
+                    if state == 0 {
+                        State::A
+                    } else {
+                        for _ in 0..state {
+                            dst[dst_pos] = src[src_pos];
+                            src_pos += 1;
+                            dst_pos += 1;
+                        }
+
+                        State::B
+                    }
                 }
+            },
+            16..=31 => {
+                if (instruction & 0b00000111) == 0 {
+                    let start = src_pos;
 
-                state = State::State3;
-            }
-            State::State3 => {
-                t = src[src_idx - 2] as usize & 3;
+                    while src[src_pos] == 0 {
+                        src_pos += 1;
+                    }
 
-                if t == 0 {
-                    state = State::State0;
+                    let count = src_pos - start;
+
+                    let length = (count * 255) + (src[src_pos] as usize) + 9;
+                    src_pos += 1;
+
+                    let distance = ((((instruction & 0b00001000) >> 3) as usize) << 14)
+                        + ((src[src_pos + 1] as usize) << 6)
+                        + ((src[src_pos] >> 2) as usize)
+                        + 16384;
+
+                    if distance == 16384 {
+                        break;
+                    }
+
+                    let state = src[src_pos] & 0b00000011;
+                    src_pos += 2;
+
+                    let mut match_pos = dst_pos - distance;
+
+                    for _ in 0..length {
+                        dst[dst_pos] = dst[match_pos];
+                        match_pos += 1;
+                        dst_pos += 1;
+                    }
+
+                    if state == 0 {
+                        State::A
+                    } else {
+                        for _ in 0..state {
+                            dst[dst_pos] = src[src_pos];
+                            src_pos += 1;
+                            dst_pos += 1;
+                        }
+
+                        State::B
+                    }
                 } else {
-                    state = State::State4;
-                }
-            }
-            State::State4 => {
-                if dst_len - dst_idx < t {
-                    return Err(DecompressError);
-                }
+                    let length = ((instruction & 0b00000111) as usize) + 2;
 
-                if src_len - src_idx < t + 3 {
-                    return Err(DecompressError);
-                }
+                    let distance = ((((instruction & 0b00001000) >> 3) as usize) << 14)
+                        + ((src[src_pos + 1] as usize) << 6)
+                        + ((src[src_pos] >> 2) as usize)
+                        + 16384;
 
-                dst[dst_idx] = src[src_idx];
-                dst_idx += 1;
-                src_idx += 1;
+                    if distance == 16384 {
+                        break;
+                    }
 
-                if t > 1 {
-                    dst[dst_idx] = src[src_idx];
-                    dst_idx += 1;
-                    src_idx += 1;
+                    let state = src[src_pos] & 0b00000011;
+                    src_pos += 2;
 
-                    if t > 2 {
-                        dst[dst_idx] = src[src_idx];
-                        dst_idx += 1;
-                        src_idx += 1;
+                    let mut match_pos = dst_pos - distance;
+
+                    for _ in 0..length {
+                        dst[dst_pos] = dst[match_pos];
+                        match_pos += 1;
+                        dst_pos += 1;
+                    }
+
+                    if state == 0 {
+                        State::A
+                    } else {
+                        for _ in 0..state {
+                            dst[dst_pos] = src[src_pos];
+                            src_pos += 1;
+                            dst_pos += 1;
+                        }
+
+                        State::B
                     }
                 }
+            }
+            32..=63 => {
+                if (instruction & 0b00011111) == 0 {
+                    let start = src_pos;
 
-                t = src[src_idx] as usize;
-                src_idx += 1;
+                    while src[src_pos] == 0 {
+                        src_pos += 1;
+                    }
 
-                state = State::State2;
+                    let count = src_pos - start;
+
+                    let length = (count * 255) + (src[src_pos] as usize) + 33;
+                    src_pos += 1;
+
+                    let distance =
+                        ((src[src_pos + 1] as usize) << 6) + ((src[src_pos] >> 2) as usize) + 1;
+                    let state = src[src_pos] & 0b00000011;
+                    src_pos += 2;
+
+                    let mut match_pos = dst_pos - distance;
+
+                    for _ in 0..length {
+                        dst[dst_pos] = dst[match_pos];
+                        match_pos += 1;
+                        dst_pos += 1;
+                    }
+
+                    if state == 0 {
+                        State::A
+                    } else {
+                        for _ in 0..state {
+                            dst[dst_pos] = src[src_pos];
+                            src_pos += 1;
+                            dst_pos += 1;
+                        }
+
+                        State::B
+                    }
+                } else {
+                    let length = ((instruction & 0b00011111) as usize) + 2;
+
+                    let distance =
+                        ((src[src_pos + 1] as usize) << 6) + ((src[src_pos] >> 2) as usize) + 1;
+                    let state = src[src_pos] & 0b00000011;
+                    src_pos += 2;
+
+                    let mut match_pos = dst_pos - distance;
+
+                    for _ in 0..length {
+                        dst[dst_pos] = dst[match_pos];
+                        match_pos += 1;
+                        dst_pos += 1;
+                    }
+
+                    if state == 0 {
+                        State::A
+                    } else {
+                        for _ in 0..state {
+                            dst[dst_pos] = src[src_pos];
+                            src_pos += 1;
+                            dst_pos += 1;
+                        }
+
+                        State::B
+                    }
+                }
+            }
+            64..=127 => {
+                let length = (((instruction & 0b00100000) >> 5) as usize) + 3;
+
+                let distance = ((src[src_pos] as usize) << 3)
+                    + (((instruction & 0b00011100) >> 2) as usize)
+                    + 1;
+                src_pos += 1;
+
+                let mut match_pos = dst_pos - distance;
+
+                for _ in 0..length {
+                    dst[dst_pos] = dst[match_pos];
+                    match_pos += 1;
+                    dst_pos += 1;
+                }
+
+                let state = instruction & 0b00000011;
+
+                if state == 0 {
+                    State::A
+                } else {
+                    for _ in 0..state {
+                        dst[dst_pos] = src[src_pos];
+                        src_pos += 1;
+                        dst_pos += 1;
+                    }
+
+                    State::B
+                }
+            }
+            128..=255 => {
+                let length = (((instruction & 0b01100000) >> 5) as usize) + 5;
+
+                let distance = ((src[src_pos] as usize) << 3)
+                    + (((instruction & 0b00011100) >> 2) as usize)
+                    + 1;
+                src_pos += 1;
+
+                let mut match_pos = dst_pos - distance;
+
+                for _ in 0..length {
+                    dst[dst_pos] = dst[match_pos];
+                    match_pos += 1;
+                    dst_pos += 1;
+                }
+
+                let state = instruction & 0b00000011;
+
+                if state == 0 {
+                    State::A
+                } else {
+                    for _ in 0..state {
+                        dst[dst_pos] = src[src_pos];
+                        src_pos += 1;
+                        dst_pos += 1;
+                    }
+
+                    State::B
+                }
             }
         }
-    }
-
-    if src_idx < src_len {
-        return Err(DecompressError);
-    }
-
-    if src_idx > src_len {
-        return Err(DecompressError);
-    }
-
-    if dst_idx < dst_len {
-        return Err(DecompressError);
     }
 
     Ok(())

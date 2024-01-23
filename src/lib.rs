@@ -42,12 +42,10 @@ mod compress_1;
 mod compress_999;
 mod config;
 mod decompress;
-mod decompress_v2;
 mod optimize;
 mod swd;
 
-// pub use decompress::decompress;
-pub use decompress_v2::decompress_v2 as decompress;
+pub use decompress::decompress;
 pub use optimize::optimize;
 
 use alloc::vec::Vec;
