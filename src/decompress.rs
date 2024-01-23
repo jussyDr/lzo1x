@@ -292,10 +292,15 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                         return Err(DecompressError);
                     }
 
-                    for _ in 0..length {
-                        dst[dst_pos] = dst[match_pos];
-                        match_pos += 1;
-                        dst_pos += 1;
+                    if length <= distance {
+                        dst.copy_within(match_pos..match_pos + length, dst_pos);
+                        dst_pos += length;
+                    } else {
+                        for _ in 0..length {
+                            dst[dst_pos] = dst[match_pos];
+                            match_pos += 1;
+                            dst_pos += 1;
+                        }
                     }
 
                     if state == 0 {
