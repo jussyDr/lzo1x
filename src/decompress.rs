@@ -186,8 +186,8 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                             return Err(DecompressError);
                         }
 
-                        let src = &src[src_pos..length];
-                        let dst = &mut dst[dst_pos..length];
+                        let src = &src[src_pos..src_pos + length];
+                        let dst = &mut dst[dst_pos..dst_pos + length];
 
                         for (src, dst) in src.iter().zip(dst).take(3) {
                             *dst = *src;
@@ -239,8 +239,8 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                             return Err(DecompressError);
                         }
 
-                        let src = &src[src_pos..length];
-                        let dst = &mut dst[dst_pos..length];
+                        let src = &src[src_pos..src_pos + length];
+                        let dst = &mut dst[dst_pos..dst_pos + length];
 
                         for (src, dst) in src.iter().zip(dst).take(3) {
                             *dst = *src;
@@ -323,8 +323,8 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                             return Err(DecompressError);
                         }
 
-                        let src = &src[src_pos..length];
-                        let dst = &mut dst[dst_pos..length];
+                        let src = &src[src_pos..src_pos + length];
+                        let dst = &mut dst[dst_pos..dst_pos + length];
 
                         for (src, dst) in src.iter().zip(dst).take(3) {
                             *dst = *src;
@@ -382,8 +382,8 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                             return Err(DecompressError);
                         }
 
-                        let src = &src[src_pos..length];
-                        let dst = &mut dst[dst_pos..length];
+                        let src = &src[src_pos..src_pos + length];
+                        let dst = &mut dst[dst_pos..dst_pos + length];
 
                         for (src, dst) in src.iter().zip(dst).take(3) {
                             *dst = *src;
@@ -489,8 +489,8 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                             return Err(DecompressError);
                         }
 
-                        let src = &src[src_pos..length];
-                        let dst = &mut dst[dst_pos..length];
+                        let src = &src[src_pos..src_pos + length];
+                        let dst = &mut dst[dst_pos..dst_pos + length];
 
                         for (src, dst) in src.iter().zip(dst).take(3) {
                             *dst = *src;
@@ -553,8 +553,8 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                             return Err(DecompressError);
                         }
 
-                        let src = &src[src_pos..length];
-                        let dst = &mut dst[dst_pos..length];
+                        let src = &src[src_pos..src_pos + length];
+                        let dst = &mut dst[dst_pos..dst_pos + length];
 
                         for (src, dst) in src.iter().zip(dst).take(3) {
                             *dst = *src;
@@ -622,8 +622,8 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                         return Err(DecompressError);
                     }
 
-                    let src = &src[src_pos..length];
-                    let dst = &mut dst[dst_pos..length];
+                    let src = &src[src_pos..src_pos + length];
+                    let dst = &mut dst[dst_pos..dst_pos + length];
 
                     for (src, dst) in src.iter().zip(dst).take(3) {
                         *dst = *src;
@@ -683,8 +683,8 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                         return Err(DecompressError);
                     }
 
-                    let src = &src[src_pos..length];
-                    let dst = &mut dst[dst_pos..length];
+                    let src = &src[src_pos..src_pos + length];
+                    let dst = &mut dst[dst_pos..dst_pos + length];
 
                     for (src, dst) in src.iter().zip(dst).take(3) {
                         *dst = *src;
