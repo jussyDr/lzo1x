@@ -4,6 +4,7 @@ use crate::DecompressError;
 
 const MAX_255_COUNT: usize = (!0 / 255) - 2;
 
+#[derive(Debug)]
 enum State {
     State0,
     State1,
