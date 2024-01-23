@@ -1,3 +1,5 @@
+use cfg_if::cfg_if;
+
 use crate::DecompressError;
 
 enum State {
@@ -472,8 +474,14 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                         return Err(DecompressError);
                     }
 
-                    let distance =
-                        ((src[src_pos + 1] as usize) << 6) + ((src[src_pos] >> 2) as usize) + 1;
+                    cfg_if! {
+                        if #[cfg(target_endian = "little")] {
+                            let distance = (u16::from_le_bytes(src[src_pos..src_pos+2].try_into().unwrap()) >> 2) as usize + 1;
+                        } else {
+                            let distance = ((src[src_pos + 1] as usize) << 6) + ((src[src_pos] >> 2) as usize) + 1;
+                        }
+                    };
+
                     let state = src[src_pos] & 0b00000011;
                     src_pos += 2;
 
