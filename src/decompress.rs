@@ -186,11 +186,15 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                             return Err(DecompressError);
                         }
 
-                        for _ in 0..length {
-                            dst[dst_pos] = src[src_pos];
-                            src_pos += 1;
-                            dst_pos += 1;
+                        let src = &src[src_pos..length];
+                        let dst = &mut dst[dst_pos..length];
+
+                        for (src, dst) in src.iter().zip(dst).take(3) {
+                            *dst = *src;
                         }
+
+                        src_pos += length;
+                        dst_pos += length;
 
                         State::B
                     }
@@ -235,11 +239,15 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                             return Err(DecompressError);
                         }
 
-                        for _ in 0..state {
-                            dst[dst_pos] = src[src_pos];
-                            src_pos += 1;
-                            dst_pos += 1;
+                        let src = &src[src_pos..length];
+                        let dst = &mut dst[dst_pos..length];
+
+                        for (src, dst) in src.iter().zip(dst).take(3) {
+                            *dst = *src;
                         }
+
+                        src_pos += length;
+                        dst_pos += length;
 
                         State::B
                     }
@@ -315,11 +323,15 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                             return Err(DecompressError);
                         }
 
-                        for _ in 0..length {
-                            dst[dst_pos] = src[src_pos];
-                            src_pos += 1;
-                            dst_pos += 1;
+                        let src = &src[src_pos..length];
+                        let dst = &mut dst[dst_pos..length];
+
+                        for (src, dst) in src.iter().zip(dst).take(3) {
+                            *dst = *src;
                         }
+
+                        src_pos += length;
+                        dst_pos += length;
 
                         State::B
                     }
@@ -370,11 +382,15 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                             return Err(DecompressError);
                         }
 
-                        for _ in 0..length {
-                            dst[dst_pos] = src[src_pos];
-                            src_pos += 1;
-                            dst_pos += 1;
+                        let src = &src[src_pos..length];
+                        let dst = &mut dst[dst_pos..length];
+
+                        for (src, dst) in src.iter().zip(dst).take(3) {
+                            *dst = *src;
                         }
+
+                        src_pos += length;
+                        dst_pos += length;
 
                         State::B
                     }
@@ -473,11 +489,15 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                             return Err(DecompressError);
                         }
 
-                        for _ in 0..length {
-                            dst[dst_pos] = src[src_pos];
-                            src_pos += 1;
-                            dst_pos += 1;
+                        let src = &src[src_pos..length];
+                        let dst = &mut dst[dst_pos..length];
+
+                        for (src, dst) in src.iter().zip(dst).take(3) {
+                            *dst = *src;
                         }
+
+                        src_pos += length;
+                        dst_pos += length;
 
                         State::B
                     }
@@ -533,11 +553,15 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                             return Err(DecompressError);
                         }
 
-                        for _ in 0..length {
-                            dst[dst_pos] = src[src_pos];
-                            src_pos += 1;
-                            dst_pos += 1;
+                        let src = &src[src_pos..length];
+                        let dst = &mut dst[dst_pos..length];
+
+                        for (src, dst) in src.iter().zip(dst).take(3) {
+                            *dst = *src;
                         }
+
+                        src_pos += length;
+                        dst_pos += length;
 
                         State::B
                     }
@@ -598,11 +622,15 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                         return Err(DecompressError);
                     }
 
-                    for _ in 0..length {
-                        dst[dst_pos] = src[src_pos];
-                        src_pos += 1;
-                        dst_pos += 1;
+                    let src = &src[src_pos..length];
+                    let dst = &mut dst[dst_pos..length];
+
+                    for (src, dst) in src.iter().zip(dst).take(3) {
+                        *dst = *src;
                     }
+
+                    src_pos += length;
+                    dst_pos += length;
 
                     State::B
                 }
@@ -655,11 +683,15 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                         return Err(DecompressError);
                     }
 
-                    for _ in 0..length {
-                        dst[dst_pos] = src[src_pos];
-                        src_pos += 1;
-                        dst_pos += 1;
+                    let src = &src[src_pos..length];
+                    let dst = &mut dst[dst_pos..length];
+
+                    for (src, dst) in src.iter().zip(dst).take(3) {
+                        *dst = *src;
                     }
+
+                    src_pos += length;
+                    dst_pos += length;
 
                     State::B
                 }
