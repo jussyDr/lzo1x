@@ -1,6 +1,5 @@
 use crate::DecompressError;
 
-#[derive(Debug)]
 enum State {
     A,
     B,
@@ -29,6 +28,10 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
     let mut src_pos = 0;
     let mut dst_pos = 0;
 
+    if src_pos + 1 > src.len() {
+        return Err(DecompressError);
+    }
+
     let instruction = src[src_pos];
 
     let mut state = match instruction {
@@ -37,6 +40,14 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
             src_pos += 1;
 
             let length = (instruction as usize) - 17;
+
+            if src_pos + length > src.len() {
+                return Err(DecompressError);
+            }
+
+            if dst_pos + length > dst.len() {
+                return Err(DecompressError);
+            }
 
             for _ in 0..length {
                 dst[dst_pos] = src[src_pos];
@@ -51,6 +62,14 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
 
             let length = (instruction as usize) - 17;
 
+            if src_pos + length > src.len() {
+                return Err(DecompressError);
+            }
+
+            if dst_pos + length > dst.len() {
+                return Err(DecompressError);
+            }
+
             for _ in 0..length {
                 dst[dst_pos] = src[src_pos];
                 src_pos += 1;
@@ -62,6 +81,10 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
     };
 
     loop {
+        if src_pos + 1 > src.len() {
+            return Err(DecompressError);
+        }
+
         let instruction = src[src_pos];
         src_pos += 1;
 
@@ -71,7 +94,15 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                     if instruction == 0 {
                         let start = src_pos;
 
-                        while src[src_pos] == 0 {
+                        loop {
+                            if src_pos + 1 > src.len() {
+                                return Err(DecompressError);
+                            }
+
+                            if src[src_pos] != 0 {
+                                break;
+                            }
+
                             src_pos += 1;
                         }
 
@@ -79,6 +110,14 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
 
                         let length = (count * 255) + (src[src_pos] as usize) + 18;
                         src_pos += 1;
+
+                        if src_pos + length > src.len() {
+                            return Err(DecompressError);
+                        }
+
+                        if dst_pos + length > dst.len() {
+                            return Err(DecompressError);
+                        }
 
                         dst[dst_pos..dst_pos + length]
                             .copy_from_slice(&src[src_pos..src_pos + length]);
@@ -89,6 +128,14 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                     } else {
                         let length = (instruction as usize) + 3;
 
+                        if src_pos + length > src.len() {
+                            return Err(DecompressError);
+                        }
+
+                        if dst_pos + length > dst.len() {
+                            return Err(DecompressError);
+                        }
+
                         dst[dst_pos..dst_pos + length]
                             .copy_from_slice(&src[src_pos..src_pos + length]);
                         src_pos += length;
@@ -98,11 +145,23 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                     }
                 }
                 State::B => {
+                    if src_pos + 1 > src.len() {
+                        return Err(DecompressError);
+                    }
+
                     let distance =
                         ((src[src_pos] as usize) << 2) + ((instruction >> 2) as usize) + 1;
                     src_pos += 1;
 
+                    if distance > dst_pos {
+                        return Err(DecompressError);
+                    }
+
                     let mut match_pos = dst_pos - distance;
+
+                    if dst_pos + 2 > dst.len() {
+                        return Err(DecompressError);
+                    }
 
                     for _ in 0..2 {
                         dst[dst_pos] = dst[match_pos];
@@ -115,7 +174,17 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                     if state == 0 {
                         State::A
                     } else {
-                        for _ in 0..state {
+                        let length = state as usize;
+
+                        if src_pos + length > src.len() {
+                            return Err(DecompressError);
+                        }
+
+                        if dst_pos + length > dst.len() {
+                            return Err(DecompressError);
+                        }
+
+                        for _ in 0..length {
                             dst[dst_pos] = src[src_pos];
                             src_pos += 1;
                             dst_pos += 1;
@@ -125,11 +194,23 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                     }
                 }
                 State::C => {
+                    if src_pos + 1 > src.len() {
+                        return Err(DecompressError);
+                    }
+
                     let distance =
                         ((src[src_pos] as usize) << 2) + ((instruction >> 2) as usize) + 2049;
                     src_pos += 1;
 
+                    if distance > dst_pos {
+                        return Err(DecompressError);
+                    }
+
                     let mut match_pos = dst_pos - distance;
+
+                    if dst_pos + 3 > dst.len() {
+                        return Err(DecompressError);
+                    }
 
                     for _ in 0..3 {
                         dst[dst_pos] = dst[match_pos];
@@ -142,6 +223,16 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                     if state == 0 {
                         State::A
                     } else {
+                        let length = state as usize;
+
+                        if src_pos + length > src.len() {
+                            return Err(DecompressError);
+                        }
+
+                        if dst_pos + length > dst.len() {
+                            return Err(DecompressError);
+                        }
+
                         for _ in 0..state {
                             dst[dst_pos] = src[src_pos];
                             src_pos += 1;
@@ -156,7 +247,15 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                 if (instruction & 0b00000111) == 0 {
                     let start = src_pos;
 
-                    while src[src_pos] == 0 {
+                    loop {
+                        if src_pos + 1 > src.len() {
+                            return Err(DecompressError);
+                        }
+
+                        if src[src_pos] != 0 {
+                            break;
+                        }
+
                         src_pos += 1;
                     }
 
@@ -164,6 +263,10 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
 
                     let length = (count * 255) + (src[src_pos] as usize) + 9;
                     src_pos += 1;
+
+                    if src_pos + 2 > src.len() {
+                        return Err(DecompressError);
+                    }
 
                     let distance = ((((instruction & 0b00001000) >> 3) as usize) << 14)
                         + ((src[src_pos + 1] as usize) << 6)
@@ -177,7 +280,15 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                     let state = src[src_pos] & 0b00000011;
                     src_pos += 2;
 
+                    if distance > dst_pos {
+                        return Err(DecompressError);
+                    }
+
                     let mut match_pos = dst_pos - distance;
+
+                    if dst_pos + length > dst.len() {
+                        return Err(DecompressError);
+                    }
 
                     for _ in 0..length {
                         dst[dst_pos] = dst[match_pos];
@@ -188,7 +299,17 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                     if state == 0 {
                         State::A
                     } else {
-                        for _ in 0..state {
+                        let length = state as usize;
+
+                        if src_pos + length > src.len() {
+                            return Err(DecompressError);
+                        }
+
+                        if dst_pos + length > dst.len() {
+                            return Err(DecompressError);
+                        }
+
+                        for _ in 0..length {
                             dst[dst_pos] = src[src_pos];
                             src_pos += 1;
                             dst_pos += 1;
@@ -199,6 +320,10 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                 } else {
                     let length = ((instruction & 0b00000111) as usize) + 2;
 
+                    if src_pos + 2 > src.len() {
+                        return Err(DecompressError);
+                    }
+
                     let distance = ((((instruction & 0b00001000) >> 3) as usize) << 14)
                         + ((src[src_pos + 1] as usize) << 6)
                         + ((src[src_pos] >> 2) as usize)
@@ -211,7 +336,15 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                     let state = src[src_pos] & 0b00000011;
                     src_pos += 2;
 
+                    if distance > dst_pos {
+                        return Err(DecompressError);
+                    }
+
                     let mut match_pos = dst_pos - distance;
+
+                    if dst_pos + length > dst.len() {
+                        return Err(DecompressError);
+                    }
 
                     for _ in 0..length {
                         dst[dst_pos] = dst[match_pos];
@@ -222,7 +355,17 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                     if state == 0 {
                         State::A
                     } else {
-                        for _ in 0..state {
+                        let length = state as usize;
+
+                        if src_pos + length > src.len() {
+                            return Err(DecompressError);
+                        }
+
+                        if dst_pos + length > dst.len() {
+                            return Err(DecompressError);
+                        }
+
+                        for _ in 0..length {
                             dst[dst_pos] = src[src_pos];
                             src_pos += 1;
                             dst_pos += 1;
@@ -236,7 +379,15 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                 if (instruction & 0b00011111) == 0 {
                     let start = src_pos;
 
-                    while src[src_pos] == 0 {
+                    loop {
+                        if src_pos + 1 > src.len() {
+                            return Err(DecompressError);
+                        }
+
+                        if src[src_pos] != 0 {
+                            break;
+                        }
+
                         src_pos += 1;
                     }
 
@@ -245,12 +396,24 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                     let length = (count * 255) + (src[src_pos] as usize) + 33;
                     src_pos += 1;
 
+                    if src_pos + 2 > src.len() {
+                        return Err(DecompressError);
+                    }
+
                     let distance =
                         ((src[src_pos + 1] as usize) << 6) + ((src[src_pos] >> 2) as usize) + 1;
                     let state = src[src_pos] & 0b00000011;
                     src_pos += 2;
 
+                    if distance > dst_pos {
+                        return Err(DecompressError);
+                    }
+
                     let mut match_pos = dst_pos - distance;
+
+                    if dst_pos + length > dst.len() {
+                        return Err(DecompressError);
+                    }
 
                     match distance {
                         5..=8 => {
@@ -284,7 +447,17 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                     if state == 0 {
                         State::A
                     } else {
-                        for _ in 0..state {
+                        let length = state as usize;
+
+                        if src_pos + length > src.len() {
+                            return Err(DecompressError);
+                        }
+
+                        if dst_pos + length > dst.len() {
+                            return Err(DecompressError);
+                        }
+
+                        for _ in 0..length {
                             dst[dst_pos] = src[src_pos];
                             src_pos += 1;
                             dst_pos += 1;
@@ -295,12 +468,24 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                 } else {
                     let length = ((instruction & 0b00011111) as usize) + 2;
 
+                    if src_pos + 2 > src.len() {
+                        return Err(DecompressError);
+                    }
+
                     let distance =
                         ((src[src_pos + 1] as usize) << 6) + ((src[src_pos] >> 2) as usize) + 1;
                     let state = src[src_pos] & 0b00000011;
                     src_pos += 2;
 
+                    if distance > dst_pos {
+                        return Err(DecompressError);
+                    }
+
                     let mut match_pos = dst_pos - distance;
+
+                    if dst_pos + length > dst.len() {
+                        return Err(DecompressError);
+                    }
 
                     if length < distance {
                         dst.copy_within(match_pos..match_pos + length, dst_pos);
@@ -316,7 +501,17 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                     if state == 0 {
                         State::A
                     } else {
-                        for _ in 0..state {
+                        let length = state as usize;
+
+                        if src_pos + length > src.len() {
+                            return Err(DecompressError);
+                        }
+
+                        if dst_pos + length > dst.len() {
+                            return Err(DecompressError);
+                        }
+
+                        for _ in 0..length {
                             dst[dst_pos] = src[src_pos];
                             src_pos += 1;
                             dst_pos += 1;
@@ -329,12 +524,24 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
             64..=127 => {
                 let length = (((instruction & 0b00100000) >> 5) as usize) + 3;
 
+                if src_pos + 1 > src.len() {
+                    return Err(DecompressError);
+                }
+
                 let distance = ((src[src_pos] as usize) << 3)
                     + (((instruction & 0b00011100) >> 2) as usize)
                     + 1;
                 src_pos += 1;
 
+                if distance > dst_pos {
+                    return Err(DecompressError);
+                }
+
                 let mut match_pos = dst_pos - distance;
+
+                if dst_pos + length > dst.len() {
+                    return Err(DecompressError);
+                }
 
                 for _ in 0..length {
                     dst[dst_pos] = dst[match_pos];
@@ -347,7 +554,17 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                 if state == 0 {
                     State::A
                 } else {
-                    for _ in 0..state {
+                    let length = state as usize;
+
+                    if src_pos + length > src.len() {
+                        return Err(DecompressError);
+                    }
+
+                    if dst_pos + length > dst.len() {
+                        return Err(DecompressError);
+                    }
+
+                    for _ in 0..length {
                         dst[dst_pos] = src[src_pos];
                         src_pos += 1;
                         dst_pos += 1;
@@ -359,12 +576,24 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
             128..=255 => {
                 let length = (((instruction & 0b01100000) >> 5) as usize) + 5;
 
+                if src_pos + 1 > src.len() {
+                    return Err(DecompressError);
+                }
+
                 let distance = ((src[src_pos] as usize) << 3)
                     + (((instruction & 0b00011100) >> 2) as usize)
                     + 1;
                 src_pos += 1;
 
+                if distance > dst_pos {
+                    return Err(DecompressError);
+                }
+
                 let mut match_pos = dst_pos - distance;
+
+                if dst_pos + length > dst.len() {
+                    return Err(DecompressError);
+                }
 
                 for _ in 0..length {
                     dst[dst_pos] = dst[match_pos];
@@ -377,7 +606,17 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                 if state == 0 {
                     State::A
                 } else {
-                    for _ in 0..state {
+                    let length = state as usize;
+
+                    if src_pos + length > src.len() {
+                        return Err(DecompressError);
+                    }
+
+                    if dst_pos + length > dst.len() {
+                        return Err(DecompressError);
+                    }
+
+                    for _ in 0..length {
                         dst[dst_pos] = src[src_pos];
                         src_pos += 1;
                         dst_pos += 1;
