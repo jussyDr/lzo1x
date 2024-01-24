@@ -2,7 +2,7 @@
 
 Safe Rust port of the LZO1X compression algorithm.
 
-
+All functionality has been completely cross-tested against the original C implementation using [lzo-sys](https://crates.io/crates/lzo-sys).
 
  ## Performance
 
@@ -29,4 +29,4 @@ Below are decompression benchmarks of files found in the [Calgary Corpus](https:
 
  ### Compression
 
-Compression is in general significantly slower than decompression, and also slower when compared to the original implementations using [lzo-sys](https://crates.io/crates/lzo-sys).
+Compression is in general significantly slower than decompression, and also slower when compared to the original C implementations using [lzo-sys](https://crates.io/crates/lzo-sys).

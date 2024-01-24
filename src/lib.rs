@@ -30,6 +30,26 @@
 //!
 //! assert_eq!(compressed.len(), 9);
 //! ```
+//! # Comparison with original implementation
+//!
+//! All functionality has been completely cross-tested against the original C implementation using [lzo-sys](https://crates.io/crates/lzo-sys).
+//! Futhermore, all compression functions have been unified on a single level scale according to the table below:
+//!
+//! | level | C equivalent        | C level |
+//! | ----- | ------------------- |         |
+//! | 1     | lzo1x_1_11_compress |         |
+//! | 2     | lzo1x_1_12_compress |         |
+//! | 3     | lzo1x_1_compress    |         |
+//! | 4     | lzo1x_1_15_compress |         |
+//! | 5     | lzo1x_999_compress  | 1       |
+//! | 6     | lzo1x_999_compress  | 2       |
+//! | 7     | lzo1x_999_compress  | 3       |
+//! | 8     | lzo1x_999_compress  | 4       |
+//! | 9     | lzo1x_999_compress  | 5       |
+//! | 10    | lzo1x_999_compress  | 6       |
+//! | 11    | lzo1x_999_compress  | 7       |
+//! | 12    | lzo1x_999_compress  | 8       |
+//! | 13    | lzo1x_999_compress  | 9       |
 
 extern crate alloc;
 

@@ -4,8 +4,8 @@ use alloc::vec;
 ///
 /// The length of the original decompressed data should be given in `decompressed_len`.
 ///
-/// The length of the compressed data will not change,
-/// and this will likely only give a decompression speed-up of around 1-3%.
+/// This function does not change the length of the compressed data,
+/// and is likely to only improve the decompression speed around 0-3%.
 ///
 /// #### Panics
 ///

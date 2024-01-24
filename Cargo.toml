@@ -1,8 +1,14 @@
 [package]
 name = "lzo1x"
 version = "0.1.0"
+authors = ["Justin de Ruiter <justinderuiter@ziggo.nl>"]
 edition = "2021"
 rust-version = "1.75.0"
+description = "Safe Rust port of the LZO1X compression algorithm"
+repository = "https://github.com/jussyDr/lzo1x"
+license = "GPL-2.0"
+keywords = ["lzo"]
+categories = ["compression"]
 
 [[test]]
 name = "test"
