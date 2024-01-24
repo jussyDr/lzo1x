@@ -6,7 +6,7 @@
 //!
 //! # Examples
 //!
-//! Simple compression and decompression.
+//! Compression and decompression:
 //!
 //! ```
 //! let data = &[0xaa; 100];
@@ -20,20 +20,15 @@
 //! assert_eq!(decompressed, data);
 //! ```
 //!
-//! Slow pre-compression of data.
+//! Slow but optimized pre-compression:
 //!
 //! ```
 //! let data = &[0xaa; 100];
 //! let mut compressed = lzo1x::compress(data, lzo1x::CompressLevel::new(13).unwrap());
 //!
-//! assert_eq!(compressed.len(), 9);
-//!
 //! lzo1x::optimize(&mut compressed, data.len());
 //!
-//! let mut decompressed = vec![0; data.len()];
-//! lzo1x::decompress(&compressed, &mut decompressed).unwrap();
-//!
-//! assert_eq!(decompressed, data);
+//! assert_eq!(compressed.len(), 9);
 //! ```
 
 extern crate alloc;
@@ -55,7 +50,7 @@ use compress_999::compress_999;
 
 /// Compress the given `src` with the given compression `level`.
 ///
-/// A higher compression level results in a better compression ratio, at the cost of a longer runtime.
+/// A higher level results in a better compression ratio at the cost of a longer runtime.
 ///
 /// # Examples
 ///
@@ -84,7 +79,7 @@ pub fn compress(src: &[u8], level: CompressLevel) -> Vec<u8> {
     }
 }
 
-/// LZO1X compression level.
+/// Compression level.
 #[derive(Clone, Copy)]
 pub struct CompressLevel(u8);
 
@@ -109,6 +104,6 @@ impl Default for CompressLevel {
     }
 }
 
-/// Error while decompressing using LZO1X.
+/// Error that occured during decompression.
 #[derive(Debug)]
 pub struct DecompressError;

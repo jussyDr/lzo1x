@@ -1,6 +1,6 @@
 use alloc::vec;
 
-/// Optimize LZO1X-compressed data given in `src` in terms of decompression speed.
+/// Optimize compressed data given in `src` in terms of decompression speed.
 ///
 /// The length of the original decompressed data should be given in `decompressed_len`.
 ///

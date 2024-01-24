@@ -1,3 +1,5 @@
+// Decompression is based on the following description: https://docs.kernel.org/staging/lzo.html.
+
 use cfg_if::cfg_if;
 
 use crate::DecompressError;
