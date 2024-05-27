@@ -1,6 +1,6 @@
 #![warn(missing_docs)]
 #![forbid(unsafe_code)]
-#![no_std]
+#![cfg_attr(not(feature = "std"), no_std)]
 
 //! Safe Rust port of the LZO1X compression algorithm.
 //!
@@ -24,7 +24,7 @@
 //!
 //! ```
 //! let data = &[0xaa; 100];
-//! let mut compressed = lzo1x::compress(data, lzo1x::CompressLevel::new(13).unwrap());
+//! let mut compressed = lzo1x::compress(data, lzo1x::CompressLevel::new(13));
 //!
 //! lzo1x::optimize(&mut compressed, data.len());
 //!
@@ -59,6 +59,8 @@ mod config;
 mod decompress;
 mod optimize;
 mod swd;
+
+use core::fmt::{self, Display, Formatter};
 
 pub use decompress::decompress;
 pub use optimize::optimize;
@@ -100,30 +102,79 @@ pub fn compress(src: &[u8], level: CompressLevel) -> Vec<u8> {
 }
 
 /// Compression level.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct CompressLevel(u8);
 
 impl CompressLevel {
     /// Create a new `CompressLevel` instance from the given `level`.
     ///
-    /// The given `level` should be between 1 and 13, otherwise `None` is returned.
-    ///
-    /// The default compression level is 3.
-    pub const fn new(level: u8) -> Option<Self> {
-        if !matches!(level, 1..=13) {
-            return None;
+    /// The given `level` should be between 1 and 13, otherwise it is clamped to the nearest valid level.
+    pub const fn new(level: u8) -> Self {
+        if level < Self::MIN.0 {
+            Self::MIN
+        } else if level > Self::MAX.0 {
+            Self::MAX
+        } else {
+            Self(level)
         }
-
-        Some(Self(level))
     }
+
+    /// Minimum supported compression level. (1)
+    pub const MIN: Self = Self(1);
+
+    /// Maximum supported compression level. (13)
+    pub const MAX: Self = Self(13);
 }
 
 impl Default for CompressLevel {
+    /// Returns the default compression level. (3)
     fn default() -> Self {
         Self(3)
     }
 }
 
+impl Display for CompressLevel {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        Display::fmt(&self.0, f)
+    }
+}
+
+impl From<u8> for CompressLevel {
+    fn from(level: u8) -> Self {
+        Self::new(level)
+    }
+}
+
+/// Error returned when the given compression level is not between 1 and 13.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct CompressLevelError;
+
+impl Display for CompressLevelError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.write_str("invalid compression level")
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::error::Error for CompressLevelError {}
+
 /// Error that occured during decompression.
-#[derive(Debug)]
-pub struct DecompressError;
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum DecompressError {
+    /// The input source does not contain valid compressed data.
+    InvalidInput,
+    /// The destination buffer length does not exactly match the decompressed data length.
+    OutputLength,
+}
+
+impl Display for DecompressError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match *self {
+            Self::InvalidInput => f.write_str("invalid input"),
+            Self::OutputLength => f.write_str("output length does not match"),
+        }
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::error::Error for DecompressError {}
