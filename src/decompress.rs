@@ -1,14 +1,6 @@
-// Decompression is based on the following description: https://docs.kernel.org/staging/lzo.html.
-
-use cfg_if::cfg_if;
+use std::io::{self, Read};
 
 use crate::DecompressError;
-
-enum State {
-    A,
-    B,
-    C,
-}
 
 /// Decompress the given `src` into the given `dst`.
 ///
@@ -29,692 +21,550 @@ enum State {
 /// assert_eq!(decompressed, data);
 /// ```
 pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
-    let mut src_pos = 0;
-    let mut dst_pos = 0;
-
-    if src_pos + 1 > src.len() {
-        return Err(DecompressError::InvalidInput);
-    }
-
-    let instruction = src[src_pos];
-
-    let mut state = match instruction {
-        0..=17 => State::A,
-        18..=20 => {
-            src_pos += 1;
-
-            let length = (instruction as usize) - 17;
-
-            if src_pos + length > src.len() {
-                return Err(DecompressError::InvalidInput);
-            }
-
-            if dst_pos + length > dst.len() {
-                return Err(DecompressError::OutputLength);
-            }
-
-            for _ in 0..length {
-                dst[dst_pos] = src[src_pos];
-                src_pos += 1;
-                dst_pos += 1;
-            }
-
-            State::B
-        }
-        21..=255 => {
-            src_pos += 1;
-
-            let length = (instruction as usize) - 17;
-
-            if src_pos + length > src.len() {
-                return Err(DecompressError::InvalidInput);
-            }
-
-            if dst_pos + length > dst.len() {
-                return Err(DecompressError::OutputLength);
-            }
-
-            for _ in 0..length {
-                dst[dst_pos] = src[src_pos];
-                src_pos += 1;
-                dst_pos += 1;
-            }
-
-            State::C
-        }
-    };
-
-    loop {
-        if src_pos + 1 > src.len() {
-            return Err(DecompressError::InvalidInput);
-        }
-
-        let instruction = src[src_pos];
-        src_pos += 1;
-
-        state = match instruction {
-            0..=15 => match state {
-                State::A => {
-                    if instruction == 0 {
-                        let start = src_pos;
-
-                        loop {
-                            if src_pos + 1 > src.len() {
-                                return Err(DecompressError::InvalidInput);
-                            }
-
-                            if src[src_pos] != 0 {
-                                break;
-                            }
-
-                            src_pos += 1;
-                        }
-
-                        let count = src_pos - start;
-
-                        let length = (count * 255) + (src[src_pos] as usize) + 18;
-                        src_pos += 1;
-
-                        if src_pos + length > src.len() {
-                            return Err(DecompressError::InvalidInput);
-                        }
-
-                        if dst_pos + length > dst.len() {
-                            return Err(DecompressError::OutputLength);
-                        }
-
-                        dst[dst_pos..dst_pos + length]
-                            .copy_from_slice(&src[src_pos..src_pos + length]);
-                        src_pos += length;
-                        dst_pos += length;
-
-                        State::C
-                    } else {
-                        let length = (instruction as usize) + 3;
-
-                        if src_pos + length > src.len() {
-                            return Err(DecompressError::InvalidInput);
-                        }
-
-                        if dst_pos + length > dst.len() {
-                            return Err(DecompressError::OutputLength);
-                        }
-
-                        dst[dst_pos..dst_pos + length]
-                            .copy_from_slice(&src[src_pos..src_pos + length]);
-                        src_pos += length;
-                        dst_pos += length;
-
-                        State::C
-                    }
-                }
-                State::B => {
-                    if src_pos + 1 > src.len() {
-                        return Err(DecompressError::InvalidInput);
-                    }
-
-                    let distance =
-                        ((src[src_pos] as usize) << 2) + ((instruction >> 2) as usize) + 1;
-                    src_pos += 1;
-
-                    if distance > dst_pos {
-                        return Err(DecompressError::InvalidInput);
-                    }
-
-                    let mut match_pos = dst_pos - distance;
-
-                    if dst_pos + 2 > dst.len() {
-                        return Err(DecompressError::OutputLength);
-                    }
-
-                    for _ in 0..2 {
-                        dst[dst_pos] = dst[match_pos];
-                        match_pos += 1;
-                        dst_pos += 1;
-                    }
-
-                    let state = instruction & 0b00000011;
-
-                    if state == 0 {
-                        State::A
-                    } else {
-                        let length = state as usize;
-
-                        if src_pos + length > src.len() {
-                            return Err(DecompressError::InvalidInput);
-                        }
-
-                        if dst_pos + length > dst.len() {
-                            return Err(DecompressError::OutputLength);
-                        }
-
-                        let src = &src[src_pos..src_pos + length];
-                        let dst = &mut dst[dst_pos..dst_pos + length];
-
-                        for (src, dst) in src.iter().zip(dst).take(3) {
-                            *dst = *src;
-                        }
-
-                        src_pos += length;
-                        dst_pos += length;
-
-                        State::B
-                    }
-                }
-                State::C => {
-                    if src_pos + 1 > src.len() {
-                        return Err(DecompressError::InvalidInput);
-                    }
-
-                    let distance =
-                        ((src[src_pos] as usize) << 2) + ((instruction >> 2) as usize) + 2049;
-                    src_pos += 1;
-
-                    if distance > dst_pos {
-                        return Err(DecompressError::InvalidInput);
-                    }
-
-                    let mut match_pos = dst_pos - distance;
-
-                    if dst_pos + 3 > dst.len() {
-                        return Err(DecompressError::OutputLength);
-                    }
-
-                    for _ in 0..3 {
-                        dst[dst_pos] = dst[match_pos];
-                        match_pos += 1;
-                        dst_pos += 1;
-                    }
-
-                    let state = instruction & 0b00000011;
-
-                    if state == 0 {
-                        State::A
-                    } else {
-                        let length = state as usize;
-
-                        if src_pos + length > src.len() {
-                            return Err(DecompressError::InvalidInput);
-                        }
-
-                        if dst_pos + length > dst.len() {
-                            return Err(DecompressError::OutputLength);
-                        }
-
-                        let src = &src[src_pos..src_pos + length];
-                        let dst = &mut dst[dst_pos..dst_pos + length];
-
-                        for (src, dst) in src.iter().zip(dst).take(3) {
-                            *dst = *src;
-                        }
-
-                        src_pos += length;
-                        dst_pos += length;
-
-                        State::B
-                    }
-                }
-            },
-            16..=31 => {
-                if (instruction & 0b00000111) == 0 {
-                    let start = src_pos;
-
-                    loop {
-                        if src_pos + 1 > src.len() {
-                            return Err(DecompressError::InvalidInput);
-                        }
-
-                        if src[src_pos] != 0 {
-                            break;
-                        }
-
-                        src_pos += 1;
-                    }
-
-                    let count = src_pos - start;
-
-                    let length = (count * 255) + (src[src_pos] as usize) + 9;
-                    src_pos += 1;
-
-                    if src_pos + 2 > src.len() {
-                        return Err(DecompressError::InvalidInput);
-                    }
-
-                    let distance = ((((instruction & 0b00001000) >> 3) as usize) << 14)
-                        + ((src[src_pos + 1] as usize) << 6)
-                        + ((src[src_pos] >> 2) as usize)
-                        + 16384;
-                    let state = src[src_pos] & 0b00000011;
-                    src_pos += 2;
-
-                    if distance == 16384 {
-                        break;
-                    }
-
-                    if distance > dst_pos {
-                        return Err(DecompressError::InvalidInput);
-                    }
-
-                    let mut match_pos = dst_pos - distance;
-
-                    if dst_pos + length > dst.len() {
-                        return Err(DecompressError::OutputLength);
-                    }
-
-                    if length <= distance {
-                        dst.copy_within(match_pos..match_pos + length, dst_pos);
-                        dst_pos += length;
-                    } else {
-                        for _ in 0..length {
-                            dst[dst_pos] = dst[match_pos];
-                            match_pos += 1;
-                            dst_pos += 1;
-                        }
-                    }
-
-                    if state == 0 {
-                        State::A
-                    } else {
-                        let length = state as usize;
-
-                        if src_pos + length > src.len() {
-                            return Err(DecompressError::InvalidInput);
-                        }
-
-                        if dst_pos + length > dst.len() {
-                            return Err(DecompressError::OutputLength);
-                        }
-
-                        let src = &src[src_pos..src_pos + length];
-                        let dst = &mut dst[dst_pos..dst_pos + length];
-
-                        for (src, dst) in src.iter().zip(dst).take(3) {
-                            *dst = *src;
-                        }
-
-                        src_pos += length;
-                        dst_pos += length;
-
-                        State::B
-                    }
-                } else {
-                    let length = ((instruction & 0b00000111) as usize) + 2;
-
-                    if src_pos + 2 > src.len() {
-                        return Err(DecompressError::InvalidInput);
-                    }
-
-                    let distance = ((((instruction & 0b00001000) >> 3) as usize) << 14)
-                        + ((src[src_pos + 1] as usize) << 6)
-                        + ((src[src_pos] >> 2) as usize)
-                        + 16384;
-                    let state = src[src_pos] & 0b00000011;
-                    src_pos += 2;
-
-                    if distance == 16384 {
-                        break;
-                    }
-
-                    if distance > dst_pos {
-                        return Err(DecompressError::InvalidInput);
-                    }
-
-                    let mut match_pos = dst_pos - distance;
-
-                    if dst_pos + length > dst.len() {
-                        return Err(DecompressError::OutputLength);
-                    }
-
-                    for _ in 0..length {
-                        dst[dst_pos] = dst[match_pos];
-                        match_pos += 1;
-                        dst_pos += 1;
-                    }
-
-                    if state == 0 {
-                        State::A
-                    } else {
-                        let length = state as usize;
-
-                        if src_pos + length > src.len() {
-                            return Err(DecompressError::InvalidInput);
-                        }
-
-                        if dst_pos + length > dst.len() {
-                            return Err(DecompressError::OutputLength);
-                        }
-
-                        let src = &src[src_pos..src_pos + length];
-                        let dst = &mut dst[dst_pos..dst_pos + length];
-
-                        for (src, dst) in src.iter().zip(dst).take(3) {
-                            *dst = *src;
-                        }
-
-                        src_pos += length;
-                        dst_pos += length;
-
-                        State::B
-                    }
-                }
-            }
-            32..=63 => {
-                if (instruction & 0b00011111) == 0 {
-                    let start = src_pos;
-
-                    loop {
-                        if src_pos + 1 > src.len() {
-                            return Err(DecompressError::InvalidInput);
-                        }
-
-                        if src[src_pos] != 0 {
-                            break;
-                        }
-
-                        src_pos += 1;
-                    }
-
-                    let count = src_pos - start;
-
-                    let length = (count * 255) + (src[src_pos] as usize) + 33;
-                    src_pos += 1;
-
-                    if src_pos + 2 > src.len() {
-                        return Err(DecompressError::InvalidInput);
-                    }
-
-                    let distance =
-                        ((src[src_pos + 1] as usize) << 6) + ((src[src_pos] >> 2) as usize) + 1;
-                    let state = src[src_pos] & 0b00000011;
-                    src_pos += 2;
-
-                    if distance > dst_pos {
-                        return Err(DecompressError::InvalidInput);
-                    }
-
-                    let mut match_pos = dst_pos - distance;
-
-                    if dst_pos + length > dst.len() {
-                        return Err(DecompressError::OutputLength);
-                    }
-
-                    if length <= distance {
-                        dst.copy_within(match_pos..match_pos + length, dst_pos);
-                        dst_pos += length;
-                    } else {
-                        match distance {
-                            1 => {
-                                let value = dst[match_pos];
-                                dst[dst_pos..dst_pos + length].fill(value);
-                                dst_pos += length;
-                            }
-                            5..=8 => {
-                                let value: [u8; 8] =
-                                    dst[match_pos..match_pos + 8].try_into().unwrap();
-                                let end = dst_pos + length;
-                                let mut match_dst = &mut dst[dst_pos..end];
-
-                                while match_dst.len() >= 8 {
-                                    match_dst[..8].copy_from_slice(&value);
-                                    match_pos += distance;
-                                    match_dst = &mut match_dst[distance..];
-                                }
-
-                                dst_pos += length - match_dst.len();
-
-                                while dst_pos < end {
-                                    dst[dst_pos] = dst[match_pos];
-                                    match_pos += 1;
-                                    dst_pos += 1;
-                                }
-                            }
-                            _ => {
-                                for _ in 0..length {
-                                    dst[dst_pos] = dst[match_pos];
-                                    match_pos += 1;
-                                    dst_pos += 1;
-                                }
-                            }
-                        }
-                    }
-
-                    if state == 0 {
-                        State::A
-                    } else {
-                        let length = state as usize;
-
-                        if src_pos + length > src.len() {
-                            return Err(DecompressError::InvalidInput);
-                        }
-
-                        if dst_pos + length > dst.len() {
-                            return Err(DecompressError::OutputLength);
-                        }
-
-                        let src = &src[src_pos..src_pos + length];
-                        let dst = &mut dst[dst_pos..dst_pos + length];
-
-                        for (src, dst) in src.iter().zip(dst).take(3) {
-                            *dst = *src;
-                        }
-
-                        src_pos += length;
-                        dst_pos += length;
-
-                        State::B
-                    }
-                } else {
-                    let length = ((instruction & 0b00011111) as usize) + 2;
-
-                    if src_pos + 2 > src.len() {
-                        return Err(DecompressError::InvalidInput);
-                    }
-
-                    cfg_if! {
-                        if #[cfg(target_endian = "little")] {
-                            let distance = (u16::from_le_bytes(src[src_pos..src_pos+2].try_into().unwrap()) >> 2) as usize + 1;
-                        } else {
-                            let distance = ((src[src_pos + 1] as usize) << 6) + ((src[src_pos] >> 2) as usize) + 1;
-                        }
-                    };
-
-                    let state = src[src_pos] & 0b00000011;
-                    src_pos += 2;
-
-                    if distance > dst_pos {
-                        return Err(DecompressError::InvalidInput);
-                    }
-
-                    let mut match_pos = dst_pos - distance;
-
-                    if dst_pos + length > dst.len() {
-                        return Err(DecompressError::OutputLength);
-                    }
-
-                    if length <= distance {
-                        dst.copy_within(match_pos..match_pos + length, dst_pos);
-                        dst_pos += length;
-                    } else {
-                        for _ in 0..length {
-                            dst[dst_pos] = dst[match_pos];
-                            match_pos += 1;
-                            dst_pos += 1;
-                        }
-                    }
-
-                    if state == 0 {
-                        State::A
-                    } else {
-                        let length = state as usize;
-
-                        if src_pos + length > src.len() {
-                            return Err(DecompressError::InvalidInput);
-                        }
-
-                        if dst_pos + length > dst.len() {
-                            return Err(DecompressError::OutputLength);
-                        }
-
-                        let src = &src[src_pos..src_pos + length];
-                        let dst = &mut dst[dst_pos..dst_pos + length];
-
-                        for (src, dst) in src.iter().zip(dst).take(3) {
-                            *dst = *src;
-                        }
-
-                        src_pos += length;
-                        dst_pos += length;
-
-                        State::B
-                    }
-                }
-            }
-            64..=127 => {
-                let is_length_4 = instruction & 0b00100000 != 0;
-
-                if src_pos + 1 > src.len() {
-                    return Err(DecompressError::InvalidInput);
-                }
-
-                let distance = ((src[src_pos] as usize) << 3)
-                    + (((instruction & 0b00011100) >> 2) as usize)
-                    + 1;
-                src_pos += 1;
-
-                if distance > dst_pos {
-                    return Err(DecompressError::InvalidInput);
-                }
-
-                let mut match_pos = dst_pos - distance;
-
-                if is_length_4 {
-                    let mut value =
-                        u32::from_ne_bytes(dst[match_pos..match_pos + 4].try_into().unwrap());
-
-                    match distance {
-                        1 => value = (value & 0x000000ff).wrapping_mul(0x01010101),
-                        2 => value = (value & 0x0000ffff).wrapping_mul(0x00010001),
-                        3 => value = (value & 0x00ffffff).wrapping_mul(0x01000001),
-                        _ => {}
-                    }
-
-                    if dst_pos + 4 > dst.len() {
-                        return Err(DecompressError::OutputLength);
-                    }
-
-                    dst[dst_pos..dst_pos + 4].copy_from_slice(&value.to_ne_bytes());
-                    dst_pos += 4;
-                } else {
-                    if dst_pos + 3 > dst.len() {
-                        return Err(DecompressError::OutputLength);
-                    }
-
-                    for _ in 0..3 {
-                        dst[dst_pos] = dst[match_pos];
-                        match_pos += 1;
-                        dst_pos += 1;
-                    }
-                }
-
-                let state = instruction & 0b00000011;
-
-                if state == 0 {
-                    State::A
-                } else {
-                    let length = state as usize;
-
-                    if src_pos + length > src.len() {
-                        return Err(DecompressError::InvalidInput);
-                    }
-
-                    if dst_pos + length > dst.len() {
-                        return Err(DecompressError::OutputLength);
-                    }
-
-                    let src = &src[src_pos..src_pos + length];
-                    let dst = &mut dst[dst_pos..dst_pos + length];
-
-                    for (src, dst) in src.iter().zip(dst).take(3) {
-                        *dst = *src;
-                    }
-
-                    src_pos += length;
-                    dst_pos += length;
-
-                    State::B
-                }
-            }
-            128..=255 => {
-                let length = (((instruction & 0b01100000) >> 5) as usize) + 5;
-
-                if src_pos + 1 > src.len() {
-                    return Err(DecompressError::InvalidInput);
-                }
-
-                let distance = ((src[src_pos] as usize) << 3)
-                    + (((instruction & 0b00011100) >> 2) as usize)
-                    + 1;
-                src_pos += 1;
-
-                if distance > dst_pos {
-                    return Err(DecompressError::InvalidInput);
-                }
-
-                let mut match_pos = dst_pos - distance;
-
-                if dst_pos + length > dst.len() {
-                    return Err(DecompressError::OutputLength);
-                }
-
-                if length <= distance {
-                    dst.copy_within(match_pos..match_pos + length, dst_pos);
-                    dst_pos += length;
-                } else {
-                    for _ in 0..length {
-                        dst[dst_pos] = dst[match_pos];
-                        match_pos += 1;
-                        dst_pos += 1;
-                    }
-                }
-
-                let state = instruction & 0b00000011;
-
-                if state == 0 {
-                    State::A
-                } else {
-                    let length = state as usize;
-
-                    if src_pos + length > src.len() {
-                        return Err(DecompressError::InvalidInput);
-                    }
-
-                    if dst_pos + length > dst.len() {
-                        return Err(DecompressError::OutputLength);
-                    }
-
-                    let src = &src[src_pos..src_pos + length];
-                    let dst = &mut dst[dst_pos..dst_pos + length];
-
-                    for (src, dst) in src.iter().zip(dst).take(3) {
-                        *dst = *src;
-                    }
-
-                    src_pos += length;
-                    dst_pos += length;
-
-                    State::B
-                }
-            }
-        }
-    }
-
-    if src_pos != src.len() {
-        return Err(DecompressError::InvalidInput);
-    }
-
-    if dst_pos != dst.len() {
-        return Err(DecompressError::OutputLength);
-    }
+    let mut decompressor = Decompressor::new(src);
+
+    decompressor
+        .read_exact(dst)
+        .map_err(|_| DecompressError::InvalidInput)?;
 
     Ok(())
+}
+
+pub struct Decompressor<R> {
+    reader: R,
+    peeked_byte: Option<u8>,
+    dict: Vec<u8>,
+    state: Option<State>,
+    op: Option<Op>,
+}
+
+#[derive(Clone, Copy)]
+enum State {
+    A,
+    B,
+    C,
+}
+
+#[derive(Clone, Copy)]
+enum Op {
+    Lit(LitOp),
+    Match(MatchOp),
+    MatchLit(MatchOp, LitOp),
+}
+
+#[derive(Clone, Copy)]
+struct LitOp {
+    len: usize,
+}
+
+#[derive(Clone, Copy)]
+struct MatchOp {
+    dist: usize,
+    len: usize,
+}
+
+impl<R> Decompressor<R> {
+    pub fn new(reader: R) -> Self {
+        Self {
+            reader,
+            peeked_byte: None,
+            dict: vec![],
+            state: None,
+            op: None,
+        }
+    }
+}
+
+impl<R: Read> Decompressor<R> {
+    fn read_byte(&mut self) -> io::Result<u8> {
+        match self.peeked_byte {
+            None => {
+                let mut buf = [0];
+                self.reader.read_exact(&mut buf)?;
+
+                Ok(buf[0])
+            }
+            Some(byte) => {
+                self.peeked_byte = None;
+
+                Ok(byte)
+            }
+        }
+    }
+
+    fn peek_byte(&mut self) -> io::Result<u8> {
+        match self.peeked_byte {
+            None => {
+                let byte = self.read_byte()?;
+
+                self.peeked_byte = Some(byte);
+
+                Ok(byte)
+            }
+            Some(byte) => Ok(byte),
+        }
+    }
+
+    fn count_zeros(&mut self) -> io::Result<usize> {
+        let mut count = 0;
+
+        while self.peek_byte()? == 0 {
+            self.read_byte()?;
+
+            count += 1;
+        }
+
+        Ok(count)
+    }
+}
+
+impl<R: Read> Read for Decompressor<R> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        if buf.is_empty() {
+            return Ok(0);
+        }
+
+        let mut n = 0;
+
+        loop {
+            if let Some(op) = self.op {
+                match op {
+                    Op::Lit(LitOp { len: lit_len }) => {
+                        if n + lit_len > buf.len() {
+                            let count = buf.len() - n;
+
+                            for _ in 0..count {
+                                let byte = self.read_byte()?;
+
+                                buf[n] = byte;
+                                n += 1;
+
+                                self.dict.push(byte);
+                            }
+
+                            self.op = Some(Op::Lit(LitOp {
+                                len: lit_len - count,
+                            }));
+
+                            return Ok(n);
+                        } else if n + lit_len == buf.len() {
+                            for _ in 0..lit_len {
+                                let byte = self.read_byte()?;
+
+                                buf[n] = byte;
+                                n += 1;
+
+                                self.dict.push(byte);
+                            }
+
+                            self.op = None;
+
+                            return Ok(n);
+                        } else {
+                            for _ in 0..lit_len {
+                                let byte = self.read_byte()?;
+
+                                buf[n] = byte;
+                                n += 1;
+
+                                self.dict.push(byte);
+                            }
+
+                            self.op = None;
+                        }
+                    }
+                    Op::Match(MatchOp {
+                        dist: match_dist,
+                        len: match_len,
+                    }) => {
+                        if n + match_len > buf.len() {
+                            let count = buf.len() - n;
+
+                            for _ in 0..count {
+                                let byte = self.dict[self.dict.len() - match_dist];
+
+                                buf[n] = byte;
+                                n += 1;
+
+                                self.dict.push(byte);
+                            }
+
+                            self.op = Some(Op::Match(MatchOp {
+                                dist: match_dist,
+                                len: match_len - count,
+                            }));
+
+                            return Ok(n);
+                        } else if n + match_len == buf.len() {
+                            for _ in 0..match_len {
+                                let byte = self.dict[self.dict.len() - match_dist];
+
+                                buf[n] = byte;
+                                n += 1;
+
+                                self.dict.push(byte);
+                            }
+
+                            self.op = None;
+
+                            return Ok(n);
+                        } else {
+                            for _ in 0..match_len {
+                                let byte = self.dict[self.dict.len() - match_dist];
+
+                                buf[n] = byte;
+                                n += 1;
+
+                                self.dict.push(byte);
+                            }
+
+                            self.op = None;
+                        }
+                    }
+                    Op::MatchLit(
+                        MatchOp {
+                            dist: match_dist,
+                            len: match_len,
+                        },
+                        LitOp { len: lit_len },
+                    ) => {
+                        if n + match_len > buf.len() {
+                            let count = buf.len() - n;
+
+                            for _ in 0..count {
+                                let byte = self.dict[self.dict.len() - match_dist];
+
+                                buf[n] = byte;
+                                n += 1;
+
+                                self.dict.push(byte);
+                            }
+
+                            self.op = Some(Op::MatchLit(
+                                MatchOp {
+                                    dist: match_dist,
+                                    len: match_len - count,
+                                },
+                                LitOp { len: lit_len },
+                            ));
+
+                            return Ok(n);
+                        } else if n + match_len == buf.len() {
+                            for _ in 0..match_len {
+                                let byte = self.dict[self.dict.len() - match_dist];
+
+                                buf[n] = byte;
+                                n += 1;
+
+                                self.dict.push(byte);
+                            }
+
+                            self.op = Some(Op::Lit(LitOp { len: lit_len }));
+
+                            return Ok(n);
+                        } else {
+                            for _ in 0..match_len {
+                                let byte = self.dict[self.dict.len() - match_dist];
+
+                                buf[n] = byte;
+                                n += 1;
+
+                                self.dict.push(byte);
+                            }
+                        }
+
+                        if n + lit_len > buf.len() {
+                            let count = buf.len() - n;
+
+                            for _ in 0..count {
+                                let byte = self.read_byte()?;
+
+                                buf[n] = byte;
+                                n += 1;
+
+                                self.dict.push(byte);
+                            }
+
+                            self.op = Some(Op::Lit(LitOp {
+                                len: lit_len - count,
+                            }));
+
+                            return Ok(n);
+                        } else if n + lit_len == buf.len() {
+                            for _ in 0..lit_len {
+                                let byte = self.read_byte()?;
+
+                                buf[n] = byte;
+                                n += 1;
+
+                                self.dict.push(byte);
+                            }
+
+                            self.op = None;
+
+                            return Ok(n);
+                        } else {
+                            for _ in 0..lit_len {
+                                let byte = self.read_byte()?;
+
+                                buf[n] = byte;
+                                n += 1;
+
+                                self.dict.push(byte);
+                            }
+
+                            self.op = None;
+                        }
+                    }
+                }
+            }
+
+            match self.state {
+                None => {
+                    let insn = self.peek_byte()?;
+
+                    if insn <= 17 {
+                        self.state = Some(State::A);
+                    } else {
+                        self.read_byte()?;
+
+                        let lit_len = (insn - 17) as usize;
+                        self.op = Some(Op::Lit(LitOp { len: lit_len }));
+
+                        if insn <= 20 {
+                            self.state = Some(State::B);
+                        } else {
+                            self.state = Some(State::C);
+                        }
+                    }
+                }
+                Some(state) => {
+                    let insn = self.read_byte()?;
+
+                    match insn {
+                        0..=15 => match state {
+                            State::A => {
+                                let lit_len = if insn == 0 {
+                                    let count = self.count_zeros()?;
+
+                                    (count * 255) + (self.read_byte()? as usize) + 18
+                                } else {
+                                    (insn + 3) as usize
+                                };
+
+                                self.op = Some(Op::Lit(LitOp { len: lit_len }));
+
+                                self.state = Some(State::C);
+                            }
+                            State::B | State::C => {
+                                let match_op = match state {
+                                    State::A => unreachable!(),
+                                    State::B => {
+                                        let match_dist = ((self.read_byte()? as usize) << 2)
+                                            + ((insn >> 2) as usize)
+                                            + 1;
+
+                                        MatchOp {
+                                            dist: match_dist,
+                                            len: 2,
+                                        }
+                                    }
+                                    State::C => {
+                                        let match_dist = ((self.read_byte()? as usize) << 2)
+                                            + ((insn >> 2) as usize)
+                                            + 2049;
+
+                                        MatchOp {
+                                            dist: match_dist,
+                                            len: 3,
+                                        }
+                                    }
+                                };
+
+                                let lit_len = (insn & 0b00000011) as usize;
+
+                                if lit_len == 0 {
+                                    self.op = Some(Op::Match(match_op));
+
+                                    self.state = Some(State::A);
+                                } else {
+                                    self.op = Some(Op::MatchLit(match_op, LitOp { len: lit_len }));
+
+                                    self.state = Some(State::B);
+                                }
+                            }
+                        },
+                        16..=31 => {
+                            if (insn & 0b00000111) == 0 {
+                                let count = self.count_zeros()?;
+
+                                let match_len = (count * 255) + (self.read_byte()? as usize) + 9;
+
+                                let sub_insn = self.read_byte()?;
+
+                                let match_dist = ((((insn & 0b00001000) >> 3) as usize) << 14)
+                                    + ((sub_insn >> 2) as usize)
+                                    + ((self.read_byte()? as usize) << 6)
+                                    + 16384;
+
+                                if match_dist == 16384 {
+                                    todo!("end")
+                                }
+
+                                let match_op = MatchOp {
+                                    dist: match_dist,
+                                    len: match_len,
+                                };
+
+                                let lit_len = (sub_insn & 0b00000011) as usize;
+
+                                if lit_len == 0 {
+                                    self.op = Some(Op::Match(match_op));
+
+                                    self.state = Some(State::A);
+                                } else {
+                                    self.op = Some(Op::MatchLit(match_op, LitOp { len: lit_len }));
+
+                                    self.state = Some(State::B);
+                                }
+                            } else {
+                                let match_len = ((insn & 0b00000111) as usize) + 2;
+
+                                let sub_insn = self.read_byte()?;
+
+                                let match_dist = ((((insn & 0b00001000) >> 3) as usize) << 14)
+                                    + ((sub_insn >> 2) as usize)
+                                    + ((self.read_byte()? as usize) << 6)
+                                    + 16384;
+
+                                if match_dist == 16384 {
+                                    todo!("end")
+                                }
+
+                                let match_op = MatchOp {
+                                    dist: match_dist,
+                                    len: match_len,
+                                };
+
+                                let lit_len = (sub_insn & 0b00000011) as usize;
+
+                                if lit_len == 0 {
+                                    self.op = Some(Op::Match(match_op));
+
+                                    self.state = Some(State::A);
+                                } else {
+                                    self.op = Some(Op::MatchLit(match_op, LitOp { len: lit_len }));
+
+                                    self.state = Some(State::B);
+                                }
+                            }
+                        }
+                        32..=63 => {
+                            if (insn & 0b00011111) == 0 {
+                                let count = self.count_zeros()?;
+
+                                let match_len = (count * 255) + (self.read_byte()? as usize) + 33;
+
+                                let sub_insn = self.read_byte()?;
+
+                                let match_dist = ((self.read_byte()? as usize) << 6)
+                                    + ((sub_insn >> 2) as usize)
+                                    + 1;
+
+                                let match_op = MatchOp {
+                                    dist: match_dist,
+                                    len: match_len,
+                                };
+
+                                let lit_len = (sub_insn & 0b00000011) as usize;
+
+                                if lit_len == 0 {
+                                    self.op = Some(Op::Match(match_op));
+
+                                    self.state = Some(State::A);
+                                } else {
+                                    self.op = Some(Op::MatchLit(match_op, LitOp { len: lit_len }));
+
+                                    self.state = Some(State::B);
+                                }
+                            } else {
+                                let match_len = ((insn & 0b00011111) as usize) + 2;
+
+                                let sub_insn = self.read_byte()?;
+
+                                let match_dist = ((self.read_byte()? as usize) << 6)
+                                    + ((sub_insn >> 2) as usize)
+                                    + 1;
+
+                                let match_op = MatchOp {
+                                    dist: match_dist,
+                                    len: match_len,
+                                };
+
+                                let lit_len = (sub_insn & 0b00000011) as usize;
+
+                                if lit_len == 0 {
+                                    self.op = Some(Op::Match(match_op));
+
+                                    self.state = Some(State::A);
+                                } else {
+                                    self.op = Some(Op::MatchLit(match_op, LitOp { len: lit_len }));
+
+                                    self.state = Some(State::B);
+                                }
+                            }
+                        }
+                        64..=127 => {
+                            let match_len = if insn & 0b00100000 != 0 { 4 } else { 3 };
+
+                            let match_dist = ((self.read_byte()? as usize) << 3)
+                                + (((insn & 0b00011100) >> 2) as usize)
+                                + 1;
+
+                            let match_op = MatchOp {
+                                dist: match_dist,
+                                len: match_len,
+                            };
+
+                            let lit_len = (insn & 0b00000011) as usize;
+
+                            if lit_len == 0 {
+                                self.op = Some(Op::Match(match_op));
+
+                                self.state = Some(State::A);
+                            } else {
+                                self.op = Some(Op::MatchLit(match_op, LitOp { len: lit_len }));
+
+                                self.state = Some(State::B);
+                            }
+                        }
+                        128..=255 => {
+                            let match_len = (((insn & 0b01100000) >> 5) as usize) + 5;
+
+                            let match_dist = ((self.read_byte()? as usize) << 3)
+                                + (((insn & 0b00011100) >> 2) as usize)
+                                + 1;
+
+                            let match_op = MatchOp {
+                                dist: match_dist,
+                                len: match_len,
+                            };
+
+                            let lit_len = (insn & 0b00000011) as usize;
+
+                            if lit_len == 0 {
+                                self.op = Some(Op::Match(match_op));
+
+                                self.state = Some(State::A);
+                            } else {
+                                self.op = Some(Op::MatchLit(match_op, LitOp { len: lit_len }));
+
+                                self.state = Some(State::B);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

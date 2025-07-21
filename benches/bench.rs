@@ -12,7 +12,7 @@ fn compress_1(b: &mut Bencher) {
     let data = bench_data();
 
     b.iter(|| {
-        lzo1x::compress(&data, CompressLevel::new(3).unwrap());
+        lzo1x::compress(&data, CompressLevel::new(3));
     })
 }
 
@@ -21,14 +21,14 @@ fn compress_999(b: &mut Bencher) {
     let data = bench_data();
 
     b.iter(|| {
-        lzo1x::compress(&data, CompressLevel::new(12).unwrap());
+        lzo1x::compress(&data, CompressLevel::new(12));
     })
 }
 
 #[bench]
 fn decompress(b: &mut Bencher) {
     let data = bench_data();
-    let compressed = lzo1x::compress(&data, CompressLevel::new(3).unwrap());
+    let compressed = lzo1x::compress(&data, CompressLevel::new(3));
 
     let mut decompressed = vec![0; data.len()];
 
