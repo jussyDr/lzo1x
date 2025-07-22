@@ -127,98 +127,61 @@ impl<R: Read> Read for Decompressor<R> {
         let mut n = 0;
 
         loop {
+            // (partially) execute the current `op`.
             if let Some(op) = self.op {
                 match op {
                     Op::Lit(LitOp { len: lit_len }) => {
-                        if n + lit_len > buf.len() {
-                            let count = buf.len() - n;
+                        // copy literal.
+                        let count = (buf.len() - n).min(lit_len);
 
-                            for _ in 0..count {
-                                let byte = self.read_byte()?;
+                        for _ in 0..count {
+                            let byte = self.read_byte()?;
 
-                                buf[n] = byte;
-                                n += 1;
+                            buf[n] = byte;
+                            n += 1;
 
-                                self.dict.push(byte);
-                            }
+                            self.dict.push(byte);
+                        }
 
+                        if count == lit_len {
+                            self.op = None;
+                        } else {
                             self.op = Some(Op::Lit(LitOp {
                                 len: lit_len - count,
                             }));
+                        }
 
+                        if lit_len >= count {
                             return Ok(n);
-                        } else if n + lit_len == buf.len() {
-                            for _ in 0..lit_len {
-                                let byte = self.read_byte()?;
-
-                                buf[n] = byte;
-                                n += 1;
-
-                                self.dict.push(byte);
-                            }
-
-                            self.op = None;
-
-                            return Ok(n);
-                        } else {
-                            for _ in 0..lit_len {
-                                let byte = self.read_byte()?;
-
-                                buf[n] = byte;
-                                n += 1;
-
-                                self.dict.push(byte);
-                            }
-
-                            self.op = None;
                         }
                     }
                     Op::Match(MatchOp {
                         dist: match_dist,
                         len: match_len,
                     }) => {
-                        if n + match_len > buf.len() {
-                            let count = buf.len() - n;
+                        // copy match.
+                        let count = (buf.len() - n).min(match_len);
 
-                            for _ in 0..count {
-                                let byte = self.dict[self.dict.len() - match_dist];
+                        for _ in 0..count {
+                            let byte = self.dict[self.dict.len() - match_dist];
 
-                                buf[n] = byte;
-                                n += 1;
+                            buf[n] = byte;
+                            n += 1;
 
-                                self.dict.push(byte);
-                            }
+                            self.dict.push(byte);
+                        }
 
+                        if count == match_len {
+                            self.op = None;
+                        } else {
                             self.op = Some(Op::Match(MatchOp {
                                 dist: match_dist,
                                 len: match_len - count,
                             }));
+                        }
 
+                        if count == match_len {
                             return Ok(n);
-                        } else if n + match_len == buf.len() {
-                            for _ in 0..match_len {
-                                let byte = self.dict[self.dict.len() - match_dist];
-
-                                buf[n] = byte;
-                                n += 1;
-
-                                self.dict.push(byte);
-                            }
-
-                            self.op = None;
-
-                            return Ok(n);
-                        } else {
-                            for _ in 0..match_len {
-                                let byte = self.dict[self.dict.len() - match_dist];
-
-                                buf[n] = byte;
-                                n += 1;
-
-                                self.dict.push(byte);
-                            }
-
-                            self.op = None;
                         }
                     }
                     Op::MatchLit(
@@ -228,18 +191,21 @@ impl<R: Read> Read for Decompressor<R> {
                         },
                         LitOp { len: lit_len },
                     ) => {
-                        if n + match_len > buf.len() {
-                            let count = buf.len() - n;
+                        // copy match.
+                        let count = (buf.len() - n).min(match_len);
 
-                            for _ in 0..count {
-                                let byte = self.dict[self.dict.len() - match_dist];
+                        for _ in 0..count {
+                            let byte = self.dict[self.dict.len() - match_dist];
 
-                                buf[n] = byte;
-                                n += 1;
+                            buf[n] = byte;
+                            n += 1;
 
-                                self.dict.push(byte);
-                            }
+                            self.dict.push(byte);
+                        }
 
+                        if count == match_len {
+                            self.op = Some(Op::Lit(LitOp { len: lit_len }));
+                        } else {
                             self.op = Some(Op::MatchLit(
                                 MatchOp {
                                     dist: match_dist,
@@ -247,78 +213,40 @@ impl<R: Read> Read for Decompressor<R> {
                                 },
                                 LitOp { len: lit_len },
                             ));
-
-                            return Ok(n);
-                        } else if n + match_len == buf.len() {
-                            for _ in 0..match_len {
-                                let byte = self.dict[self.dict.len() - match_dist];
-
-                                buf[n] = byte;
-                                n += 1;
-
-                                self.dict.push(byte);
-                            }
-
-                            self.op = Some(Op::Lit(LitOp { len: lit_len }));
-
-                            return Ok(n);
-                        } else {
-                            for _ in 0..match_len {
-                                let byte = self.dict[self.dict.len() - match_dist];
-
-                                buf[n] = byte;
-                                n += 1;
-
-                                self.dict.push(byte);
-                            }
                         }
 
-                        if n + lit_len > buf.len() {
-                            let count = buf.len() - n;
+                        // copy literal.
+                        let count = (buf.len() - n).min(lit_len);
 
-                            for _ in 0..count {
-                                let byte = self.read_byte()?;
+                        if count == 0 {
+                            return Ok(n);
+                        }
 
-                                buf[n] = byte;
-                                n += 1;
+                        for _ in 0..count {
+                            let byte = self.read_byte()?;
 
-                                self.dict.push(byte);
-                            }
+                            buf[n] = byte;
+                            n += 1;
 
+                            self.dict.push(byte);
+                        }
+
+                        if count >= lit_len {
+                            self.op = None;
+                        } else {
                             self.op = Some(Op::Lit(LitOp {
                                 len: lit_len - count,
                             }));
+                        }
 
+                        if lit_len >= count {
                             return Ok(n);
-                        } else if n + lit_len == buf.len() {
-                            for _ in 0..lit_len {
-                                let byte = self.read_byte()?;
-
-                                buf[n] = byte;
-                                n += 1;
-
-                                self.dict.push(byte);
-                            }
-
-                            self.op = None;
-
-                            return Ok(n);
-                        } else {
-                            for _ in 0..lit_len {
-                                let byte = self.read_byte()?;
-
-                                buf[n] = byte;
-                                n += 1;
-
-                                self.dict.push(byte);
-                            }
-
-                            self.op = None;
                         }
                     }
                 }
             }
 
+            // get next `op` depending on the current state.
             match self.state {
                 None => {
                     let insn = self.peek_byte()?;
@@ -341,64 +269,44 @@ impl<R: Read> Read for Decompressor<R> {
                 Some(state) => {
                     let insn = self.read_byte()?;
 
-                    match insn {
-                        0..=15 => match state {
-                            State::A => {
-                                let lit_len = if insn == 0 {
+                    if insn <= 15 && matches!(state, State::A) {
+                        let lit_len = if insn == 0 {
+                            let count = self.count_zeros()?;
+
+                            (count * 255) + (self.read_byte()? as usize) + 18
+                        } else {
+                            (insn + 3) as usize
+                        };
+
+                        self.op = Some(Op::Lit(LitOp { len: lit_len }));
+
+                        self.state = Some(State::C);
+                    } else {
+                        let (match_len, match_dist, insn) = match insn {
+                            0..=15 => match state {
+                                State::A => unreachable!(),
+                                State::B | State::C => {
+                                    let (match_len, match_dist_offset) = match state {
+                                        State::A => unreachable!(),
+                                        State::B => (2, 1),
+                                        State::C => (3, 2049),
+                                    };
+
+                                    let match_dist = ((self.read_byte()? as usize) << 2)
+                                        + ((insn >> 2) as usize)
+                                        + match_dist_offset;
+
+                                    (match_len, match_dist, insn)
+                                }
+                            },
+                            16..=31 => {
+                                let match_len = if (insn & 0b00000111) == 0 {
                                     let count = self.count_zeros()?;
 
-                                    (count * 255) + (self.read_byte()? as usize) + 18
+                                    (count * 255) + (self.read_byte()? as usize) + 9
                                 } else {
-                                    (insn + 3) as usize
+                                    ((insn & 0b00000111) as usize) + 2
                                 };
-
-                                self.op = Some(Op::Lit(LitOp { len: lit_len }));
-
-                                self.state = Some(State::C);
-                            }
-                            State::B | State::C => {
-                                let match_op = match state {
-                                    State::A => unreachable!(),
-                                    State::B => {
-                                        let match_dist = ((self.read_byte()? as usize) << 2)
-                                            + ((insn >> 2) as usize)
-                                            + 1;
-
-                                        MatchOp {
-                                            dist: match_dist,
-                                            len: 2,
-                                        }
-                                    }
-                                    State::C => {
-                                        let match_dist = ((self.read_byte()? as usize) << 2)
-                                            + ((insn >> 2) as usize)
-                                            + 2049;
-
-                                        MatchOp {
-                                            dist: match_dist,
-                                            len: 3,
-                                        }
-                                    }
-                                };
-
-                                let lit_len = (insn & 0b00000011) as usize;
-
-                                if lit_len == 0 {
-                                    self.op = Some(Op::Match(match_op));
-
-                                    self.state = Some(State::A);
-                                } else {
-                                    self.op = Some(Op::MatchLit(match_op, LitOp { len: lit_len }));
-
-                                    self.state = Some(State::B);
-                                }
-                            }
-                        },
-                        16..=31 => {
-                            if (insn & 0b00000111) == 0 {
-                                let count = self.count_zeros()?;
-
-                                let match_len = (count * 255) + (self.read_byte()? as usize) + 9;
 
                                 let sub_insn = self.read_byte()?;
 
@@ -411,59 +319,16 @@ impl<R: Read> Read for Decompressor<R> {
                                     todo!("end")
                                 }
 
-                                let match_op = MatchOp {
-                                    dist: match_dist,
-                                    len: match_len,
-                                };
-
-                                let lit_len = (sub_insn & 0b00000011) as usize;
-
-                                if lit_len == 0 {
-                                    self.op = Some(Op::Match(match_op));
-
-                                    self.state = Some(State::A);
-                                } else {
-                                    self.op = Some(Op::MatchLit(match_op, LitOp { len: lit_len }));
-
-                                    self.state = Some(State::B);
-                                }
-                            } else {
-                                let match_len = ((insn & 0b00000111) as usize) + 2;
-
-                                let sub_insn = self.read_byte()?;
-
-                                let match_dist = ((((insn & 0b00001000) >> 3) as usize) << 14)
-                                    + ((sub_insn >> 2) as usize)
-                                    + ((self.read_byte()? as usize) << 6)
-                                    + 16384;
-
-                                if match_dist == 16384 {
-                                    todo!("end")
-                                }
-
-                                let match_op = MatchOp {
-                                    dist: match_dist,
-                                    len: match_len,
-                                };
-
-                                let lit_len = (sub_insn & 0b00000011) as usize;
-
-                                if lit_len == 0 {
-                                    self.op = Some(Op::Match(match_op));
-
-                                    self.state = Some(State::A);
-                                } else {
-                                    self.op = Some(Op::MatchLit(match_op, LitOp { len: lit_len }));
-
-                                    self.state = Some(State::B);
-                                }
+                                (match_len, match_dist, sub_insn)
                             }
-                        }
-                        32..=63 => {
-                            if (insn & 0b00011111) == 0 {
-                                let count = self.count_zeros()?;
+                            32..=63 => {
+                                let match_len = if (insn & 0b00011111) == 0 {
+                                    let count = self.count_zeros()?;
 
-                                let match_len = (count * 255) + (self.read_byte()? as usize) + 33;
+                                    (count * 255) + (self.read_byte()? as usize) + 33
+                                } else {
+                                    ((insn & 0b00011111) as usize) + 2
+                                };
 
                                 let sub_insn = self.read_byte()?;
 
@@ -471,96 +336,42 @@ impl<R: Read> Read for Decompressor<R> {
                                     + ((sub_insn >> 2) as usize)
                                     + 1;
 
-                                let match_op = MatchOp {
-                                    dist: match_dist,
-                                    len: match_len,
+                                (match_len, match_dist, sub_insn)
+                            }
+                            64..=255 => {
+                                let match_len = match insn {
+                                    0..=63 => unreachable!(),
+                                    64..=127 => {
+                                        if insn & 0b00100000 != 0 {
+                                            4
+                                        } else {
+                                            3
+                                        }
+                                    }
+                                    128..=255 => (((insn & 0b01100000) >> 5) as usize) + 5,
                                 };
 
-                                let lit_len = (sub_insn & 0b00000011) as usize;
-
-                                if lit_len == 0 {
-                                    self.op = Some(Op::Match(match_op));
-
-                                    self.state = Some(State::A);
-                                } else {
-                                    self.op = Some(Op::MatchLit(match_op, LitOp { len: lit_len }));
-
-                                    self.state = Some(State::B);
-                                }
-                            } else {
-                                let match_len = ((insn & 0b00011111) as usize) + 2;
-
-                                let sub_insn = self.read_byte()?;
-
-                                let match_dist = ((self.read_byte()? as usize) << 6)
-                                    + ((sub_insn >> 2) as usize)
+                                let match_dist = ((self.read_byte()? as usize) << 3)
+                                    + (((insn & 0b00011100) >> 2) as usize)
                                     + 1;
 
-                                let match_op = MatchOp {
-                                    dist: match_dist,
-                                    len: match_len,
-                                };
-
-                                let lit_len = (sub_insn & 0b00000011) as usize;
-
-                                if lit_len == 0 {
-                                    self.op = Some(Op::Match(match_op));
-
-                                    self.state = Some(State::A);
-                                } else {
-                                    self.op = Some(Op::MatchLit(match_op, LitOp { len: lit_len }));
-
-                                    self.state = Some(State::B);
-                                }
+                                (match_len, match_dist, insn)
                             }
-                        }
-                        64..=127 => {
-                            let match_len = if insn & 0b00100000 != 0 { 4 } else { 3 };
+                        };
 
-                            let match_dist = ((self.read_byte()? as usize) << 3)
-                                + (((insn & 0b00011100) >> 2) as usize)
-                                + 1;
+                        let match_op = MatchOp {
+                            dist: match_dist,
+                            len: match_len,
+                        };
 
-                            let match_op = MatchOp {
-                                dist: match_dist,
-                                len: match_len,
-                            };
+                        let lit_len = (insn & 0b00000011) as usize;
 
-                            let lit_len = (insn & 0b00000011) as usize;
-
-                            if lit_len == 0 {
-                                self.op = Some(Op::Match(match_op));
-
-                                self.state = Some(State::A);
-                            } else {
-                                self.op = Some(Op::MatchLit(match_op, LitOp { len: lit_len }));
-
-                                self.state = Some(State::B);
-                            }
-                        }
-                        128..=255 => {
-                            let match_len = (((insn & 0b01100000) >> 5) as usize) + 5;
-
-                            let match_dist = ((self.read_byte()? as usize) << 3)
-                                + (((insn & 0b00011100) >> 2) as usize)
-                                + 1;
-
-                            let match_op = MatchOp {
-                                dist: match_dist,
-                                len: match_len,
-                            };
-
-                            let lit_len = (insn & 0b00000011) as usize;
-
-                            if lit_len == 0 {
-                                self.op = Some(Op::Match(match_op));
-
-                                self.state = Some(State::A);
-                            } else {
-                                self.op = Some(Op::MatchLit(match_op, LitOp { len: lit_len }));
-
-                                self.state = Some(State::B);
-                            }
+                        if lit_len == 0 {
+                            self.op = Some(Op::Match(match_op));
+                            self.state = Some(State::A);
+                        } else {
+                            self.op = Some(Op::MatchLit(match_op, LitOp { len: lit_len }));
+                            self.state = Some(State::B);
                         }
                     }
                 }
