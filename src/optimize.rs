@@ -10,7 +10,7 @@ use alloc::vec;
 /// #### Panics
 ///
 /// Panics if the given `src` does not contain valid compressed data,
-/// or if the given `decompressed_len` was not large enough.
+/// or if the given `decompressed_len` is not large enough.
 ///
 /// # Examples
 ///
@@ -140,15 +140,13 @@ pub fn optimize(src: &mut [u8], decompressed_len: usize) {
                     m_pos -= (src[src_idx] as usize) << 2;
                     src_idx += 1;
 
-                    if litp.is_none() {
-                        state = 4;
-                    } else {
+                    if let Some(litp) = &mut litp {
                         nl = src[src_idx - 2] as usize & 3;
 
                         if nl == 0 && lit == 1 && src[src_idx] >= 16 {
                             next_lit = nl;
                             lit += 2;
-                            src[litp.unwrap()] = ((src[litp.unwrap()] as usize & !3) | lit) as u8;
+                            src[*litp] = ((src[*litp] as usize & !3) | lit) as u8;
                             copy2(src, src_idx - 2, &mut dst, m_pos, dst_idx - m_pos);
 
                             state = 4;
@@ -159,19 +157,16 @@ pub fn optimize(src: &mut [u8], decompressed_len: usize) {
                         {
                             t = src[src_idx] as usize;
                             src_idx += 1;
-                            src[litp.unwrap()] &= !3;
+                            src[*litp] &= !3;
                             copy2(src, src_idx - 3 + 1, &mut dst, m_pos, dst_idx - m_pos);
-                            *litp.as_mut().unwrap() += 2;
+                            *litp += 2;
 
                             if lit > 0 {
-                                src.copy_within(
-                                    litp.unwrap()..litp.unwrap() + lit,
-                                    litp.unwrap() + 1,
-                                );
+                                src.copy_within(*litp..*litp + lit, *litp + 1);
                             }
 
                             lit += 2 + t + 3;
-                            src[litp.unwrap()] = (lit - 3) as u8;
+                            src[*litp] = (lit - 3) as u8;
 
                             dst[dst_idx] = dst[m_pos];
                             dst_idx += 1;
@@ -184,6 +179,8 @@ pub fn optimize(src: &mut [u8], decompressed_len: usize) {
                         } else {
                             state = 4;
                         }
+                    } else {
+                        state = 4;
                     }
                 } else {
                     state = 5;
@@ -207,9 +204,7 @@ pub fn optimize(src: &mut [u8], decompressed_len: usize) {
                     src_idx += 1;
                     t = (t >> 5) - 1;
 
-                    if litp.is_none() {
-                        state = 6;
-                    } else {
+                    if let Some(litp) = litp {
                         nl = src[src_idx - 2] as usize & 3;
                         if t == 1
                             && lit > 3
@@ -222,7 +217,7 @@ pub fn optimize(src: &mut [u8], decompressed_len: usize) {
                             src_idx += 1;
                             copy3(src, src_idx - 1 - 2, &mut dst, m_pos, dst_idx - m_pos);
                             lit += 3 + t + 3;
-                            src[litp.unwrap()] = (lit - 3) as u8;
+                            src[litp] = (lit - 3) as u8;
 
                             dst[dst_idx] = dst[m_pos];
                             dst_idx += 1;
@@ -238,6 +233,8 @@ pub fn optimize(src: &mut [u8], decompressed_len: usize) {
                         } else {
                             state = 6;
                         }
+                    } else {
+                        state = 6;
                     }
                 } else {
                     if t >= 32 {
@@ -293,14 +290,12 @@ pub fn optimize(src: &mut [u8], decompressed_len: usize) {
                         m_pos -= 0x4000;
                     }
 
-                    if litp.is_none() {
-                        state = 6;
-                    } else {
+                    if let Some(litp) = &mut litp {
                         nl = src[src_idx - 2] as usize & 3;
                         if t == 1 && lit == 0 && nl == 0 && src[src_idx] >= 16 {
                             next_lit = nl;
                             lit += 3;
-                            src[litp.unwrap()] = ((src[litp.unwrap()] as usize & !3) | lit) as u8;
+                            src[*litp] = ((src[*litp] as usize & !3) | lit) as u8;
                             copy3(src, src_idx - 3, &mut dst, m_pos, dst_idx - m_pos);
                         } else if t == 1
                             && lit <= 3
@@ -311,19 +306,16 @@ pub fn optimize(src: &mut [u8], decompressed_len: usize) {
                         {
                             t = src[src_idx] as usize;
                             src_idx += 1;
-                            src[litp.unwrap()] &= !3;
+                            src[*litp] &= !3;
                             copy3(src, src_idx - 4 + 1, &mut dst, m_pos, dst_idx - m_pos);
-                            *litp.as_mut().unwrap() += 2;
+                            *litp += 2;
 
                             if lit > 0 {
-                                src.copy_within(
-                                    litp.unwrap()..litp.unwrap() + lit,
-                                    litp.unwrap() + 1,
-                                );
+                                src.copy_within(*litp..*litp + lit, *litp + 1);
                             }
 
                             lit += 3 + t + 3;
-                            src[litp.unwrap()] = (lit - 3) as u8;
+                            src[*litp] = (lit - 3) as u8;
 
                             dst[dst_idx] = dst[m_pos];
                             dst_idx += 1;
@@ -339,6 +331,8 @@ pub fn optimize(src: &mut [u8], decompressed_len: usize) {
                         } else {
                             state = 6;
                         }
+                    } else {
+                        state = 6;
                     }
                 }
             }
