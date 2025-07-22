@@ -15,16 +15,13 @@ exclude = ["/corpora"]
 name = "test"
 harness = false
 
-[profile.bench]
-debug = true
-
 [features]
 default = ["std"]
 std = []
 
 [dependencies]
-cfg-if = "1.0.0"
+cfg-if = "1.0.1"
 
 [dev-dependencies]
-lzo-sys = "0.3.1"
-zip = "2.1.0"
+lzo-sys = "1.0.0"
+zip = "4.3.0"

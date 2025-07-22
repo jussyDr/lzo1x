@@ -2,7 +2,7 @@
 
 extern crate test;
 
-use std::{ffi::c_void, io::Read, mem::MaybeUninit, ptr::null_mut};
+use std::{ffi::c_void, fs, mem::MaybeUninit, ptr::null_mut};
 
 use lzo1x::CompressLevel;
 use test::Bencher;
@@ -12,7 +12,7 @@ fn compress_1(b: &mut Bencher) {
     let data = bench_data();
 
     b.iter(|| {
-        lzo1x::compress(&data, CompressLevel::new(3).unwrap());
+        lzo1x::compress(&data, CompressLevel::new(3));
     })
 }
 
@@ -21,14 +21,14 @@ fn compress_999(b: &mut Bencher) {
     let data = bench_data();
 
     b.iter(|| {
-        lzo1x::compress(&data, CompressLevel::new(12).unwrap());
+        lzo1x::compress(&data, CompressLevel::new(12));
     })
 }
 
 #[bench]
 fn decompress(b: &mut Bencher) {
     let data = bench_data();
-    let compressed = lzo1x::compress(&data, CompressLevel::new(3).unwrap());
+    let compressed = lzo1x::compress(&data, CompressLevel::new(3));
 
     let mut decompressed = vec![0; data.len()];
 
@@ -71,13 +71,7 @@ fn decompress_sys(b: &mut Bencher) {
 }
 
 fn bench_data() -> Vec<u8> {
-    let file = std::fs::File::open("corpora/calgary.zip").unwrap();
-    let mut zip = zip::ZipArchive::new(file).unwrap();
-    let mut file = zip.by_name("calgary/trans").unwrap();
-    let mut buf = vec![0; file.size() as usize];
-    file.read_to_end(&mut buf).unwrap();
-
-    buf
+    fs::read("benches/files/Alive.Map.Gbx.body").unwrap()
 }
 
 fn lzo_sys_compress_1(src: &[u8]) -> Vec<u8> {
