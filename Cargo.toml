@@ -19,6 +19,9 @@ harness = false
 default = ["std"]
 std = []
 
+[profile.bench]
+debug = true
+
 [dependencies]
 cfg-if = "1.0.1"
 
