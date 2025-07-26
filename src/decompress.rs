@@ -1,5 +1,7 @@
 // Decompression is based on the following description: https://docs.kernel.org/staging/lzo.html.
 
+use memset_pattern::memset_pattern;
+
 use crate::DecompressError;
 
 /// Decompress the given `src` into the given `dst`.
@@ -245,26 +247,16 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
             return Err(DecompressError::InvalidInput);
         }
 
-        let mut match_pos = dst_pos - match_dist;
+        let match_pos = dst_pos - match_dist;
 
-        if dst_pos + match_len > dst.len() {
+        let (a, b) = dst.split_at_mut(dst_pos);
+
+        if match_len > b.len() {
             return Err(DecompressError::OutputLength);
         }
 
-        if match_len <= match_dist {
-            dst.copy_within(match_pos..match_pos + match_len, dst_pos);
-            dst_pos += match_len;
-        } else if match_dist == 1 {
-            let value = dst[match_pos];
-            dst[dst_pos..dst_pos + match_len].fill(value);
-            dst_pos += match_len;
-        } else {
-            for _ in 0..match_len {
-                dst[dst_pos] = dst[match_pos];
-                match_pos += 1;
-                dst_pos += 1;
-            }
-        }
+        memset_pattern(&mut b[..match_len], &a[match_pos..]);
+        dst_pos += match_len;
 
         // Copy literal.
 

@@ -24,6 +24,7 @@ debug = true
 
 [dependencies]
 cfg-if = "1.0.1"
+memset-pattern = { path = "../memset-pattern" }
 
 [dev-dependencies]
 lzo-sys = "1.0.0"

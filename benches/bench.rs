@@ -34,7 +34,7 @@ fn decompress(b: &mut Bencher) {
 
     b.iter(|| {
         lzo1x::decompress(&compressed, &mut decompressed).unwrap();
-    })
+    });
 }
 
 #[ignore]
