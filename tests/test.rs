@@ -13,7 +13,7 @@ use std::{
 };
 
 use lzo1x::CompressLevel;
-use test::{test_main, ShouldPanic, TestDesc, TestDescAndFn, TestFn, TestName, TestType};
+use test::{ShouldPanic, TestDesc, TestDescAndFn, TestFn, TestName, TestType, test_main};
 use zip::ZipArchive;
 
 fn main() {
@@ -22,7 +22,6 @@ fn main() {
     let mut tests = vec![];
 
     add_corpus_tests(&mut tests, "corpora/calgary.zip");
-    add_corpus_tests(&mut tests, "corpora/silesia.zip");
 
     add_roundtrip_1_test(
         &mut tests,

@@ -1,7 +1,5 @@
 // Decompression is based on the following description: https://docs.kernel.org/staging/lzo.html.
 
-use memset_pattern::memset_pattern;
-
 use crate::DecompressError;
 
 /// Decompress the given `src` into the given `dst`.
@@ -78,8 +76,6 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
             0..=15 => {
                 let (match_len, match_dist_offset) = match state {
                     State::A => {
-                        // Copy literal.
-
                         let lit_len = if insn == 0 {
                             let start_src_pos = src_pos;
 
@@ -104,6 +100,8 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                         } else {
                             (insn as usize) + 3
                         };
+
+                        // Copy literal.
 
                         if src_pos + lit_len > src.len() {
                             return Err(DecompressError::InvalidInput);
@@ -247,15 +245,16 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
             return Err(DecompressError::InvalidInput);
         }
 
-        let match_pos = dst_pos - match_dist;
-
-        let (a, b) = dst.split_at_mut(dst_pos);
-
-        if match_len > b.len() {
+        if dst_pos + match_len > dst.len() {
             return Err(DecompressError::OutputLength);
         }
 
-        memset_pattern(&mut b[..match_len], &a[match_pos..]);
+        let match_pos = dst_pos - match_dist;
+
+        for i in 0..match_len {
+            dst[dst_pos + i] = dst[match_pos + i];
+        }
+
         dst_pos += match_len;
 
         // Copy literal.
