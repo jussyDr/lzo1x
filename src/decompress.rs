@@ -41,9 +41,9 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
     } else {
         src_pos += 1;
 
-        // Copy literal.
-
         let lit_len = (insn as usize) - 17;
+
+        // Copy literal with length in the range 0-238.
 
         if src_pos + lit_len > src.len() {
             return Err(DecompressError::InvalidInput);
@@ -101,7 +101,7 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
                             (insn as usize) + 3
                         };
 
-                        // Copy literal.
+                        // Copy literal with length 4 or greater.
 
                         if src_pos + lit_len > src.len() {
                             return Err(DecompressError::InvalidInput);
@@ -251,19 +251,39 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
 
         let match_pos = dst_pos - match_dist;
 
-        for i in 0..match_len {
-            dst[dst_pos + i] = dst[match_pos + i];
+        if match_dist >= match_len {
+            // Match does not overlap.
+
+            let (a, b) = dst.split_at_mut(dst_pos);
+            b[..match_len].copy_from_slice(&a[match_pos..match_pos + match_len]);
+        } else {
+            // Match overlaps.
+
+            let (a, b) = dst.split_at_mut(dst_pos);
+            b[..match_dist].copy_from_slice(&a[match_pos..match_pos + match_dist]);
+
+            let mut n = match_dist;
+
+            while n * 2 < match_len {
+                let (a, b) = b.split_at_mut(n);
+                b[..n].copy_from_slice(a);
+
+                n *= 2;
+            }
+
+            let (a, b) = b.split_at_mut(n);
+            b[..match_len - n].copy_from_slice(&a[..match_len - n]);
         }
 
         dst_pos += match_len;
-
-        // Copy literal.
 
         let lit_len = (lit_insn & 0b00000011) as usize;
 
         state = if lit_len == 0 {
             State::A
         } else {
+            // Copy literal with length in the range 1-3.
+
             if src_pos + lit_len > src.len() {
                 return Err(DecompressError::InvalidInput);
             }
@@ -286,10 +306,12 @@ pub fn decompress(src: &[u8], dst: &mut [u8]) -> Result<(), DecompressError> {
         };
     }
 
+    // Ensure the source buffer was completely consumed.
     if src_pos != src.len() {
         return Err(DecompressError::InvalidInput);
     }
 
+    // Ensure the destination buffer was completely filled.
     if dst_pos != dst.len() {
         return Err(DecompressError::OutputLength);
     }
