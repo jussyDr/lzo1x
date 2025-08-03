@@ -9,7 +9,7 @@ repository = "https://github.com/jussyDr/lzo1x"
 license = "GPL-2.0"
 keywords = ["lzo"]
 categories = ["compression"]
-exclude = ["/corpora"]
+exclude = ["/tests/corpora", "/benches/files"]
 
 [[test]]
 name = "test"

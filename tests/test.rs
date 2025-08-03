@@ -21,7 +21,7 @@ fn main() {
 
     let mut tests = vec![];
 
-    add_corpus_tests(&mut tests, "corpora/calgary.zip");
+    add_corpus_tests(&mut tests, "tests/corpora/calgary.zip");
 
     add_roundtrip_1_test(
         &mut tests,
